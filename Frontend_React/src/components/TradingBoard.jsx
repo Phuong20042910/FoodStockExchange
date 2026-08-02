@@ -5,80 +5,91 @@ import { useAuth } from '../context/AuthContext';
 import ProductDetailModal from './ProductDetailModal';
 import { 
   AlertOctagon, TrendingUp, TrendingDown, Clock, ShoppingCart, 
-  Trash2, ShieldAlert, BrainCircuit, Landmark, BarChart3, MapPin
+  Trash2, ShieldAlert, BrainCircuit, Landmark, BarChart3, MapPin,
+  Sparkles, CheckCircle2, Zap, Tag
 } from 'lucide-react';
 
-// Product Card
+// Modern Glassmorphic Product Card
 const ProductCard = React.memo(({ product, isHalted, flash, onSelect, onAdd }) => {
   let flashClass = '';
-  if (flash === 'up') flashClass = 'animate-green-glow border-neonGreen/50';
-  if (flash === 'down') flashClass = 'animate-red-glow border-neonRed/50';
+  if (flash === 'up') flashClass = 'animate-green-glow border-emerald-500/60 shadow-[0_0_20px_rgba(16,185,129,0.2)]';
+  if (flash === 'down') flashClass = 'animate-red-glow border-rose-500/60 shadow-[0_0_20px_rgba(244,63,94,0.2)]';
 
   const pctChange = ((product.current_price - product.base_price) / product.base_price) * 100;
   const isUp = pctChange > 0;
   const isDown = pctChange < 0;
-  const changeText = `${isUp ? '▲' : isDown ? '▼' : ''} ${Math.abs(pctChange).toFixed(1)}%`;
+  const changeText = `${isUp ? '▲ +' : isDown ? '▼ ' : ''}${pctChange.toFixed(1)}%`;
   const changeColor = isUp 
-    ? 'text-neonGreen bg-neonGreen/10 border-neonGreen/20' 
+    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' 
     : isDown 
-      ? 'text-neonRed bg-neonRed/10 border-neonRed/20' 
-      : 'text-gray-400 bg-gray-880/30 border-gray-850';
+      ? 'text-rose-400 bg-rose-500/10 border-rose-500/30' 
+      : 'text-slate-400 bg-slate-800/40 border-slate-700/50';
 
   return (
-    <div className={`border border-gray-850 bg-darkCard/80 backdrop-blur-md p-4 relative rounded-xl hover:border-neonCyan/40 hover:shadow-lg hover:shadow-neonCyan/5 transition-all duration-300 ${flashClass} ${isHalted ? 'opacity-50' : ''}`}>
+    <div className={`border border-slate-800/90 bg-slate-900/80 backdrop-blur-xl p-4 relative rounded-2xl hover:border-sky-500/50 hover:shadow-2xl hover:shadow-sky-500/10 transition-all duration-300 flex flex-col justify-between ${flashClass} ${isHalted ? 'opacity-50' : ''}`}>
       {isHalted && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/80 rounded-xl p-4 text-center">
-          <ShieldAlert className="h-8 w-8 text-neonRed mb-2 animate-bounce" />
-          <span className="text-neonRed text-sm font-bold">TRADING HALTED</span>
-          <span className="text-xs text-gray-500 mt-1">Biến động vượt 40%</span>
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/90 rounded-2xl p-4 text-center backdrop-blur-md">
+          <ShieldAlert className="h-9 w-9 text-rose-500 mb-2 animate-bounce" />
+          <span className="text-rose-400 text-sm font-bold font-mono tracking-wider">TRADING HALTED</span>
+          <span className="text-xs text-slate-400 mt-1">Biến động giá vượt 40% (Circuit Breaker)</span>
         </div>
       )}
 
-      {product.linked_asset && (
-        <span className="absolute top-2 right-2 text-[8px] bg-neonCyan/10 text-neonCyan border border-neonCyan/20 px-1.5 py-0.5 rounded font-mono uppercase tracking-wider animate-pulse">
-          LINKED TO {product.linked_asset}
-        </span>
-      )}
+      <div>
+        <div className="flex justify-between items-start mb-2 gap-2">
+          <span className="text-[10px] bg-slate-950 text-slate-400 px-2 py-0.5 rounded-md border border-slate-800 font-mono uppercase font-bold">
+            {product.category}
+          </span>
 
-      <div className="flex items-start gap-4">
-        <img 
-          src={product.image_url} 
-          alt={product.name} 
-          onClick={() => onSelect(product)}
-          className="h-16 w-16 object-cover border border-gray-850 cursor-pointer hover:scale-105 transition rounded-lg" 
-          loading="lazy"
-        />
-        <div className="flex-1">
-          <h3 className="font-bold text-white cursor-pointer hover:text-neonCyan transition" onClick={() => onSelect(product)}>{product.name}</h3>
-          <span className="text-[10px] bg-gray-880 text-gray-400 px-2 py-0.5 rounded border border-gray-850 font-mono uppercase">{product.category}</span>
-          
-          <div className="flex items-center gap-2.5 mt-2.5">
-            <span className="font-share-mono text-2xl font-bold text-neonCyan">{Math.round(product.current_price).toLocaleString()}</span>
-            <span className="text-[9px] text-gray-500 font-mono">VND</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono border font-semibold ${changeColor}`}>{changeText}</span>
+          {product.linked_asset && (
+            <span className="text-[9px] bg-sky-500/10 text-sky-400 border border-sky-500/30 px-2 py-0.5 rounded-md font-mono uppercase tracking-wider font-bold animate-pulse flex items-center gap-1">
+              <Zap className="h-2.5 w-2.5" /> LINKED TO {product.linked_asset}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3.5 my-2">
+          <img 
+            src={product.image_url} 
+            alt={product.name} 
+            onClick={() => onSelect(product)}
+            className="h-16 w-16 object-cover border border-slate-700/80 cursor-pointer hover:scale-105 transition rounded-xl shadow-lg shrink-0" 
+            loading="lazy"
+          />
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-white text-sm cursor-pointer hover:text-sky-400 transition truncate" onClick={() => onSelect(product)}>{product.name}</h3>
+            
+            <div className="flex items-baseline gap-2 mt-2">
+              <span className="font-share-mono text-2xl font-bold text-sky-400">{Math.round(product.current_price).toLocaleString()}</span>
+              <span className="text-[10px] text-slate-400 font-mono">VND</span>
+            </div>
+            
+            <div className="mt-1">
+              <span className={`text-[10px] px-2 py-0.5 rounded-md font-mono border font-bold inline-block ${changeColor}`}>{changeText}</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="flex gap-2 mt-4">
+      <div className="flex gap-2 mt-4 pt-3 border-t border-slate-800/80">
         <button 
           onClick={() => onSelect(product)}
-          className="flex-1 text-center py-2 text-xs border border-gray-850 rounded-lg hover:bg-gray-800/50 hover:text-white transition"
+          className="flex-1 text-center py-2 text-xs border border-slate-700/80 rounded-xl hover:bg-slate-800/80 hover:text-white transition font-mono font-bold text-slate-300"
         >
           XEM BIỂU ĐỒ
         </button>
         <button 
           onClick={() => onAdd(product)}
-          className="flex-1 text-center py-2 text-xs bg-neonCyan/10 text-neonCyan border border-neonCyan/30 rounded-lg hover:bg-neonCyan/25 hover:text-white transition"
+          className="flex-1 text-center py-2 text-xs bg-gradient-to-r from-sky-500/20 to-emerald-500/20 text-sky-300 border border-sky-500/40 rounded-xl hover:bg-sky-500/30 transition font-mono font-bold flex items-center justify-center gap-1 shadow-md shadow-sky-500/10"
         >
-          THÊM ĐƠN HÀNG
+          <ShoppingCart className="h-3.5 w-3.5" /> MUA NGAY
         </button>
       </div>
     </div>
   );
 });
 
-// Order Card
+// Modern Order Card
 const OrderCard = React.memo(({ order, onCancel }) => {
   const [countdown, setCountdown] = useState(0);
 
@@ -97,42 +108,43 @@ const OrderCard = React.memo(({ order, onCancel }) => {
   }, [order.created_at]);
 
   const statusColors = {
-    'PENDING': 'text-neonYellow bg-neonYellow/10 border-neonYellow/20',
-    'PREPARING': 'text-neonCyan bg-neonCyan/10 border-neonCyan/20',
-    'READY': 'text-neonGreen bg-neonGreen/10 border-neonGreen/20',
-    'SERVED': 'text-gray-400 bg-gray-800/10 border-gray-800/20',
-    'CANCELLED': 'text-neonRed bg-neonRed/10 border-neonRed/20'
+    'PENDING': 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+    'PREPARING': 'text-sky-400 bg-sky-500/10 border-sky-500/30',
+    'READY': 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+    'SERVED': 'text-slate-400 bg-slate-800/40 border-slate-700/50',
+    'CANCELLED': 'text-rose-400 bg-rose-500/10 border-rose-500/30'
   };
 
   return (
-    <div className="border border-gray-850 bg-black/35 p-3 rounded-lg text-xs space-y-2">
+    <div className="border border-slate-800/90 bg-slate-950/60 p-3.5 rounded-xl text-xs space-y-2.5">
       <div className="flex justify-between items-center">
-        <span className="font-share-mono text-gray-400">ID: {order.id.slice(0, 8)}</span>
-        <span className={`px-2 py-0.5 rounded border text-[10px] font-bold ${statusColors[order.status]}`}>{order.status}</span>
+        <span className="font-share-mono text-slate-400 font-bold">MÃ ĐƠN: #{order.id.slice(0, 8)}</span>
+        <span className={`px-2 py-0.5 rounded-md border text-[10px] font-bold font-mono ${statusColors[order.status]}`}>{order.status}</span>
       </div>
       
-      <div className="space-y-1 pl-2 border-l border-gray-850">
+      <div className="space-y-1 pl-2 border-l-2 border-slate-800">
         {order.items?.map((item, idx) => (
-          <div key={idx} className="text-gray-300">
-            {item.name} <span className="text-gray-500">({item.qty} × {Math.round(item.price).toLocaleString()}đ)</span>
+          <div key={idx} className="text-slate-200 font-semibold text-xs">
+            {item.name} <span className="text-slate-400 font-mono font-normal">({item.qty} × {Math.round(item.price).toLocaleString()}đ)</span>
           </div>
         ))}
       </div>
 
-      <div className="flex justify-between items-center pt-2 border-t border-gray-850">
-        <span className="font-share-mono font-semibold text-neonCyan">{Math.round(order.total_amount).toLocaleString()} VND</span>
+      <div className="flex justify-between items-center pt-2 border-t border-slate-800/80">
+        <span className="font-share-mono font-bold text-sky-400 text-sm">{Math.round(order.total_amount).toLocaleString()} VND</span>
         {order.status === 'PENDING' && countdown > 0 ? (
           <button 
             onClick={() => onCancel(order.id)}
-            className="bg-neonRed/20 hover:bg-neonRed/35 text-neonRed border border-neonRed/30 px-2 py-1 rounded flex items-center gap-1 font-bold text-[10px] transition"
+            className="bg-rose-500/20 hover:bg-rose-500/35 text-rose-300 border border-rose-500/40 px-2.5 py-1 rounded-lg flex items-center gap-1 font-bold text-[10px] font-mono transition"
           >
-            HỦY LỆNH ({countdown}s)
+            HỦY ĐƠN (PHẠT 5%) [{countdown}s]
           </button>
         ) : null}
       </div>
     </div>
   );
 });
+
 
 export default function TradingBoard() {
   const [products, setProducts] = useState([]);
@@ -476,39 +488,7 @@ export default function TradingBoard() {
         </div>
       )}
 
-      {/* Navbar */}
-      <header className="border-b border-gray-800 bg-darkCard/80 backdrop-blur px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl font-extrabold text-neonCyan font-share-mono tracking-wider">FOOD STOCK EXCHANGE</span>
-          <span className="border border-gray-850 text-xs px-2 py-1 rounded bg-black text-gray-500 font-mono">CLIENT PORTAL</span>
-        </div>
-        <div className="flex items-center gap-6">
-          {!isDelivery && (
-            <div className="text-right">
-              <div className="text-xs text-gray-500 font-mono">BÀN ORDER</div>
-              <input 
-                type="text" 
-                value={tableNumber} 
-                onChange={(e) => setTableNumber(e.target.value)} 
-                className="bg-black border border-gray-880 text-neonCyan text-center w-12 rounded py-0.5 text-sm font-share-mono focus:outline-none"
-              />
-            </div>
-          )}
-          {user && (
-            <div className="text-right">
-              <div className="text-xs text-gray-500 font-mono">TÀI KHOẢN TRADER</div>
-              <div className="font-share-mono text-neonGreen font-semibold">{user.username}</div>
-            </div>
-          )}
-          {user && (
-            <div className="text-right">
-              <div className="text-xs text-gray-500 font-mono">VÍ ĐIỆN TỬ</div>
-              <div className="font-share-mono text-neonCyan font-bold">{Math.round(user.wallet_balance).toLocaleString()} VND</div>
-            </div>
-          )}
-          <button onClick={logout} className="text-xs border border-gray-880 px-3 py-1.5 rounded hover:bg-red-500/20 hover:text-red-400 transition">ĐĂNG XUẤT</button>
-        </div>
-      </header>
+
 
       {/* Tabs */}
       <div className="max-w-7xl mx-auto px-6 mt-6 flex gap-4 border-b border-gray-850 pb-2">

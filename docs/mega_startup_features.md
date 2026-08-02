@@ -54,3 +54,21 @@
 
 *   **Cách hoạt động:** Khi có sự kiện **Market Crash (Sập sàn)**, hệ thống tự động gọi API điều khiển hệ thống đèn thông minh (như Philips Hue, Tuya) trong quán đổi màu sang màu đỏ nhấp nháy liên tục theo còi báo động. Khi thị trường ổn định, đèn chuyển lại màu vàng ấm áp.
 *   **Độ khó kỹ thuật:** Viết một Module Service kết nối với API của nhà thông minh (Philips Hue Bridge API hoặc Tuya Smart Cloud API) để gửi lệnh đổi màu đèn (RGB) dựa trên trigger event từ Server. (Có thể giả lập bằng cách vẽ một khu vực 3D quán ăn trên màn hình Admin hiển thị đèn đổi màu để demo).
+
+---
+
+### 6. Bảo Hiểm Rủi Ro Lợi Nhuận & Hợp Đồng Tương Lai (Dynamic Hedging Engine)
+**Mô tả:** Tự động bảo hiểm giá vốn nguyên liệu với các hợp đồng tương lai nông sản (Coffee, Sugar, Malt Futures). Bảo toàn biên lãi gộp 35% cho chuỗi nhà hàng ngay cả khi giá nguyên liệu thế giới tăng vọt.
+
+### 7. Mạng Xã Hội Copy-Trading & Master Trader (Social Drink Trading)
+**Mô tả:** Khách hàng có thể "Follow" các cao thủ bắt đáy đồ uống giỏi nhất quán. Khi Master Trader chốt mua 5 ly Cocktail giá sập sàn, hệ thống bắn alert cho Followers chốt mua theo 1-Tap.
+
+### 8. Giao Dịch Chênh Lệch Giá Liên Chi Nhánh (Multi-Branch Price Arbitrage)
+**Mô tả:** Khách hàng mua vẹt giá rẻ lúc sập sàn tại Chi nhánh Quận 1 và bán lại P2P trên chợ chung cho khách hàng đang nhậu ở Chi nhánh Quận 7 để ăn chênh lệch giá.
+
+### 9. Đế Lót Ly Thông Minh IoT Smart Coaster (Weight Sensor & Auto Re-order)
+**Mô tả:** Phần cứng cảm biến trọng lượng IoT đặt dưới đế lót ly. Tự động nhận diện khi ly nước rỗng <10% dung tích để kích hoạt đếm ngược mua tiếp với giá ưu đãi trên App.
+
+### 10. AI Social Trend & Sports Real-time Event Trigger
+**Mô tả:** AI tự động theo dõi tỉ số bóng đá Việt Nam & Trend TikTok. Tự động kích hoạt sự kiện sập sàn mừng chiến thắng "VICTORY FLASH BOOSTER" giảm 40% giá bia trong 5 phút.
+

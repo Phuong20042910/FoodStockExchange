@@ -100,3 +100,30 @@ Sự kiện sập sàn là công cụ marketing lan truyền (viral) cực mạn
 *   Mọi giao dịch nạp tiền, trừ tiền đặt món, hoàn tiền, phạt hủy đơn đều phải được ghi nhận đồng thời vào bảng `WALLET_TRANSACTIONS` và bảng `FINANCIAL_LEDGER`.
 *   Nghiêm cấm việc chỉ cập nhật cột `wallet_balance` trong bảng `USERS` mà không ghi log giao dịch chi tiết.
 *   Mỗi dòng log giao dịch phải chứa chữ ký số băm (hash integrity check) của dòng trước đó để ngăn chặn hacker can thiệp trực tiếp vào database để sửa tiền ví.
+
+---
+
+## 6. Quy tắc Nghiệp vụ Mở rộng Doanh nghiệp (Enterprise Expansion Rules)
+
+### BR-6.1: Cú pháp Nạp tiền Ngân hàng VietQR Auto-Matching
+*   Cú pháp nội dung chuyển khoản bắt buộc: `NAP <USER_ID>` (VD: `NAP 1042`).
+*   Webhook ngân hàng kiểm tra đúng định dạng `amountIn > 0` và trích xuất đúng `USER_ID`. Số tiền nạp tối thiểu: **20,000 VND**.
+*   Mọi giao dịch nạp auto-topup khớp lệnh được cộng tiền trong <2s và bắn thông báo Push Notification / Broadcast xuống App khách hàng.
+
+### BR-6.2: Thuật toán Tính Lời/Lỗ Danh Mục Đầu Tư (Trader PnL Calculation)
+*   Đối với mỗi loại món ăn/đồ uống khách nắm giữ trong ví voucher:
+    $$\text{Average Entry Price} = \frac{\sum (\text{Price}_{purchase} \times \text{Quantity})}{\sum \text{Quantity}}$$
+    $$\text{Unrealized PnL} = (\text{Current Market Price} - \text{Average Entry Price}) \times \text{Holding Quantity}$$
+*   Hiển thị màu xanh lá khi PnL > 0 (Đang có lời) và màu đỏ khi PnL < 0 (Đang lỗ).
+
+### BR-6.3: Quy tắc Phân Luồng Trạm Chế Biến (Station Routing Rules)
+*   Mọi sản phẩm có `category` là Beer / Cocktail / Beverage được định tuyến về `STATION_BAR`.
+*   Sản phẩm `category` là Main Dish / Fast Food được định tuyến về `STATION_HOT_KITCHEN`.
+*   Sản phẩm `category` Dessert / Salad được định tuyến về `STATION_COLD_KITCHEN`.
+*   Trạm bếp/bar xử lý độc lập từng danh mục item mà không làm ảnh hưởng tới các item thuộc trạm khác trong cùng 1 đơn hàng.
+
+### BR-6.4: Chỉ Số Tâm Lý Thị Trường Volatility Index (VIX) & Tự Động Đặt Hàng PO
+*   $VIX$ được tính theo công thức:
+    $$VIX = \min\left(100, \text{Round}\left(\frac{\text{Volume}_{15m}}{\text{Users}_{online}} \times 50 + \text{PriceChange}_{avg}\%\right)\right)$$
+*   **Supplier Auto-PO Rule**: Khi `stock_qty` trong `raw_materials` $\le$ `min_threshold`, hệ thống tự động sinh `PURCHASE_ORDERS` với số lượng $Q_{reorder} = (\text{max\_threshold} - \text{stock\_qty})$ để gửi nhà cung cấp.
+

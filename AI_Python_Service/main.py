@@ -85,22 +85,29 @@ def read_root():
 async def get_advise(request: AdviseRequest):
     """
     Trợ lý ảo AI Broker tư vấn mua/bán khớp lệnh ẩm thực dựa trên Groq (Llama 3) hoặc Gemini.
+    Đã được tối ưu hóa văn phong "Cạ Nhậu Thân Thiết" tự nhiên như bạn bè ngoài đời thực.
     """
     prompt = f"""
-Bạn là "AI Broker" - một trợ lý môi giới tài chính ẩm thực cá nhân của khách hàng tại nhà hàng Food Stock Exchange. 
-Nhiệm vụ của bạn là tư vấn cho khách hàng nên mua món gì, "bắt đáy" món nào hời nhất, hoặc kết hợp món ăn thành combo phù hợp với ngân sách của họ.
+Bạn là một "CẠ NHẬU SÀNH SỎI" kiêm đồng đội thân thiết của khách hàng tại bàn nhậu Food Stock Exchange.
+Hãy nói chuyện như một người bạn ngoài đời thực - cực kỳ tự nhiên, gần gũi, hóm hỉnh và am hiểu giá cả. Xưng hô tự nhiên (kiểu: "ông - tôi", "bằng hữu", "cạ cứng", "anh em"). Tuyệt đối KHÔNG trả lời như robot hay văn bản hành chính!
 
-Dưới đây là Ngân sách của khách: {request.budget:,.0f} VND.
-
-Dưới đây là bảng giá menu và trạng thái thị trường thực tế tại nhà hàng:
+NGÂN SÁCH CỦA BẠN TÔI: {request.budget:,.0f} VND
+BẢNG GIÁ VÀ TÌNH HÌNH MENU REAL-TIME TẠI QUÁN:
 {request.menu_context}
 
-Yêu cầu tư vấn:
-1. Phân tích xem món ăn/thức uống nào đang ở "vùng giá đáy" (gần với Giá sàn) để khuyên khách mua ("Bắt đáy").
-2. Phân tích xem món nào đang tăng giá mạnh (gần Giá trần) hoặc bị ngắt mạch (trading halted) để khuyên khách nên bán lại (nếu có vé P2P) hoặc khoan hãy mua.
-3. Đề xuất một combo cụ thể (gồm đồ ăn + đồ uống) nằm trọn trong ngân sách {request.budget:,.0f}đ của khách.
-4. Trả lời bằng tiếng Việt, giọng điệu vui vẻ, hài hước, mang phong cách của một nhà môi giới tài chính chuyên nghiệp (sử dụng các thuật ngữ như: khớp lệnh, bắt đáy, chốt lời, FOMO, sập sàn, nến xanh nến đỏ).
-5. Trả lời ngắn gọn, tối đa 3-4 đoạn, gạch đầu dòng rõ ràng.
+HÃY PHẢN HỒI NHƯ MỘT NGƯỜI BẠN THÂN ĐANG NGỒI CÙNG BÀN THEO VĂN PHONG TỰ NHIÊN:
+
+🍻 1. SĂN MÓN BẮT ĐÁY (Nói kiểu phím hàng hời cho bạn):
+- Chỉ ra 1-2 món đang rớt giá sâu hoặc được giảm sâu do Cool-down. Khuyên cạ cứng "múc" ngay trước khi đứa bàn bên gom mất!
+
+🔥 2. NÉ BẪY ĐỈNH VÀ CHỐT LỜI:
+- Nhắc nhở bạn né mấy món đang tăng giá nổ nóc hoặc bị khóa giao dịch (Halt). Nếu bạn đang giữ vé món đó thì bảo bạn "xả hàng P2P" ăn chênh lệch ngay.
+
+🍹 3. GỢI Ý COMBO VỪA TÚI TIỀN ({request.budget:,.0f}đ):
+- Chọn đúng 1 món ăn + 1 món uống tổng tiền dưới hoặc bằng {request.budget:,.0f}đ. Nói rõ tổng chi phí và thừa ra bao nhiêu tiền lẻ để làm ly nữa.
+
+🎉 4. LỜI CHÚC CỤNG LY:
+- 1 câu khích lệ hò kéo pháo cụng ly cực chất (VD: "Zô cái cho nến xanh lè đêm nay nào ông bạn!").
 """
 
     # 1. Thử gọi Groq API (Mô hình Llama 3)
@@ -109,16 +116,16 @@ Yêu cầu tư vấn:
             client = Groq(api_key=GROQ_API_KEY)
             chat_completion = client.chat.completions.create(
                 messages=[
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    }
+                    {"role": "system", "content": "Bạn là cạ nhậu sành sỏi, bạn thân tại quán bar. Nói chuyện tự nhiên, hài hước, xưng ông-tôi như bạn bè ngoài đời."},
+                    {"role": "user", "content": prompt}
                 ],
                 model="llama-3.1-8b-instant",
+                temperature=0.7,
+                max_tokens=650
             )
             reply = chat_completion.choices[0].message.content
             if reply:
-                return {"advice": reply, "model": "Groq Llama 3.1"}
+                return {"advice": reply, "model": "Groq Llama 3.1 (Bro Persona)"}
         except Exception as e:
             print(f"Lỗi khi gọi Groq: {e}. Thử chuyển sang Gemini...")
 
@@ -126,11 +133,16 @@ Yêu cầu tư vấn:
     if GEMINI_API_KEY and not GEMINI_API_KEY.startswith("YOUR_"):
         try:
             model = genai.GenerativeModel('gemini-1.5-flash')
-            response = model.generate_content(prompt)
+            response = model.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(temperature=0.7, max_output_tokens=650)
+            )
             if response.text:
-                return {"advice": response.text, "model": "Gemini 1.5 Flash"}
+                return {"advice": response.text, "model": "Gemini 1.5 Flash (Bro Persona)"}
         except Exception as e:
             print(f"Lỗi khi gọi Gemini: {e}. Sử dụng thuật toán dự phòng...")
+
+
 
     # 3. Thuật toán dự phòng (Rule-based Fallback)
     # Vì Python Service không trực tiếp giữ Database, logic này sẽ được tính toán

@@ -7,20 +7,21 @@ export default {
   theme: {
     extend: {
       colors: {
-        darkBg: '#08090c',
-        darkCard: '#11131a',
-        'gray-850': '#1b1d28',
-        'gray-880': '#12131a',
-        neonGreen: '#00FF66',
-        neonRed: '#FF3366',
-        neonYellow: '#FFCC00',
-        neonCyan: '#00E5FF'
+        darkBg: '#0b0f17',
+        darkCard: '#131926',
+        'gray-850': '#1e293b',
+        'gray-880': '#0f172a',
+        neonGreen: '#10b981',
+        neonRed: '#f43f5e',
+        neonYellow: '#f59e0b',
+        neonCyan: '#38bdf8'
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        mono: ['Courier New', 'Courier', 'monospace']
+        sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+        mono: ['Share Tech Mono', 'Courier New', 'monospace']
       }
     },
   },
   plugins: [],
 }
+

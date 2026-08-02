@@ -146,4 +146,38 @@ router.post('/', auth('ADMIN'), async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/products/{id}/toggle-trading:
+ *   patch:
+ *     summary: Toggle product trading availability (Kitchen / Admin Out-Of-Stock trigger)
+ *     tags: [Products]
+ */
+router.patch('/:id/toggle-trading', auth(['ADMIN', 'KITCHEN']), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.query(
+      'UPDATE products SET is_trading = NOT is_trading WHERE id = $1 RETURNING id, name, is_trading',
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('PRODUCT_TRADING_TOGGLED', result.rows[0]);
+    }
+
+    return res.json({
+      message: `Tải trạng thái giao dịch cho ${result.rows[0].name} thành ${result.rows[0].is_trading ? 'ĐANG MỞ' : 'TẠM DỪNG (HẾT NGUYÊN LIỆU)'}`,
+      product: result.rows[0]
+    });
+  } catch (err) {
+    console.error('Toggle trading error:', err);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
 module.exports = router;
+

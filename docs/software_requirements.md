@@ -25,23 +25,36 @@ Tài liệu này xác định chi tiết các tính năng nghiệp vụ, điều
     *   Chuyển toàn bộ giao diện app sang theme "PANIC MODE" (Nền tối đỏ, viền chớp sáng cường độ cao) khi có tín hiệu từ server.
     *   Hiển thị đồng hồ đếm ngược (Countdown Timer) thời gian sập sàn.
     *   Phát hiệu ứng âm thanh còi hú báo động.
+*   **FR-C6 (Danh mục Đầu tư Ẩm thực Trader PnL Portfolio):**
+    *   Hiển thị bảng quản lý các coupon/món ăn khách đang sở hữu kèm Lời/Lỗ dự tính (Unrealized PnL) và Lời/Lỗ thực tế (Realized PnL).
+    *   Cho phép niêm yết bán lại trực tiếp lên Chợ P2P hoặc đặt lệnh chờ mua tự động (Limit Order).
 
 #### 1.2. Ứng dụng Thu Ngân & Điểm bán (POS Portal)
-*   **FR-P1 (Định danh Bàn quét QR):** Tạo/Xuất mã QR tương ứng cho từng bàn ăn. Mã QR phải chứa thông tin bàn mã hóa để tránh khách quét nhầm bàn khác.
+*   **FR-P1 (Định danh Bàn quét QR):** Tạo/Xuất mã QR tương ứng cho từng bàn ăn. Mã QR phải chứa thông tin bàn mã hóa và mã PIN 4 số để tránh khách quét nhầm bàn khác.
 *   **FR-P2 (Ví điện tử Khách hàng):** 
     *   Quét mã QR ID của khách để nạp tiền mặt vào ví điện tử.
     *   Hiển thị lịch sử giao dịch và mã băm Audit log để kiểm tra tính toàn vẹn tài chính.
+*   **FR-P3 (Cổng Nạp Tiền Ngân Hàng Auto VietQR / SePAY):**
+    *   Tự động sinh mã VietQR NAPAS 247 theo cú pháp `NAP <USER_ID>`.
+    *   Xử lý Webhook ngân hàng tự động cộng tiền ví trong 2 giây kèm ghi log Sổ cái Hash SHA-256.
 
 #### 1.3. Hệ thống Bếp (KDS Portal)
 *   **FR-K1 (Quy trình Kanban Bếp):** Nhận order realtime, hỗ trợ kéo thả trạng thái từ Chờ làm → Đang làm → Đã xong.
 *   **FR-K2 (Hệ thống Cảnh báo SLA Bếp):**
     *   Tự động đo đếm thời gian kể từ lúc bếp nhận đơn.
     *   Tự động đổi màu thẻ đơn hàng sang cam (nếu quá 10 phút) và đỏ nhấp nháy kèm âm thanh (nếu quá 15 phút).
+*   **FR-K3 (Phân Luồng Đa Trạm & In Phiếu Chế Biến Nhiệt):**
+    *   Tự động phân tách danh mục đơn hàng (Item Splitting) gửi về đúng màn hình trạm (Bar Pha Chế, Bếp Nóng, Bếp Lạnh).
+    *   Giả lập xuất định dạng cuộn in nhiệt ESC/POS ngay khi trạm nhận chế biến.
 
 #### 1.4. Bảng điều khiển Quản trị (Admin Market Control)
 *   **FR-A1 (Market Simulator):** Thanh trượt thay đổi $K$ (độ nhạy biến động giá) và $T_{idle}$ (thời gian giảm giá tự động của món ế).
 *   **FR-A2 (Panic Button):** Nút kích hoạt Market Crash chủ động.
 *   **FR-A3 (Báo cáo Tài chính Nến Nhật):** Thống kê doanh thu theo giờ dạng biểu đồ hình nến (Candlestick chart).
+*   **FR-A4 (Tự động Sinh Đơn Mua Hàng & Quản lý Mặt Bằng 2D):**
+    *   Tự động tạo Đơn mua hàng (Purchase Order - PO) gửi nhà cung cấp khi nguyên liệu chạm ngưỡng an toàn.
+    *   Cấu hình sơ đồ mặt bằng 2D phân khu (Bar, Main, VIP, Terrace) và quản lý bảng chỉ số Volatility Index (VIX).
+
 
 ---
 

@@ -1,16 +1,9 @@
 const db = require('../config/db');
 const crypto = require('crypto');
+const externalApis = require('./externalApis');
 
 let isCrashMode = false;
 let crashEndTime = null;
-
-// Cache for external asset prices to avoid hitting API rate limits too fast
-const assetCache = {
-  BTC: 65000,          // Bitcoin in USD
-  EUR_VND: 27500,      // EUR to VND exchange rate
-  COFFEE: 2.20,        // Coffee commodity price index
-  lastUpdated: 0
-};
 
 const start = (io) => {
   console.log('Pricing Engine started...');
@@ -34,38 +27,16 @@ const start = (io) => {
   }, 10000);
 };
 
-// Fetch real-world financial assets (CoinGecko & ExchangeRate API)
+// Fetch real-world financial assets (CoinGecko & ExchangeRate API via externalApis module)
 const fetchExternalAssets = async () => {
-  // Only fetch every 60 seconds to prevent rate limits
-  if (Date.now() - assetCache.lastUpdated < 60000) return;
-
   try {
-    // 1. Fetch Bitcoin (BTC) Price from CoinGecko
-    const btcRes = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
-    if (btcRes.ok) {
-      const data = await btcRes.json();
-      assetCache.BTC = data.bitcoin.usd;
-    }
-
-    // 2. Fetch EUR to VND Exchange rate
-    const forexRes = await fetch('https://open.er-api.com/v6/latest/EUR');
-    if (forexRes.ok) {
-      const data = await forexRes.json();
-      if (data.rates && data.rates.VND) {
-        assetCache.EUR_VND = data.rates.VND;
-      }
-    }
-
-    // 3. Simulating Coffee Commodities (London Futures index fluctuates slightly)
-    const randomFluctuation = (Math.random() - 0.5) * 0.05; // +/- 2.5%
-    assetCache.COFFEE = Math.max(1.0, assetCache.COFFEE * (1 + randomFluctuation));
-
-    assetCache.lastUpdated = Date.now();
-    console.log(`[Asset Update] BTC: $${assetCache.BTC}, EUR_VND: ${assetCache.EUR_VND}đ, COFFEE Index: ${assetCache.COFFEE.toFixed(2)}`);
+    const assets = await externalApis.syncExternalAssetFeeds();
+    return assets;
   } catch (err) {
     console.warn('Could not fetch external financial API. Using cached values. Error:', err.message);
   }
 };
+
 
 const runPricingAlgorithm = async (io) => {
   const client = await db.pool.connect();
@@ -129,9 +100,11 @@ const runPricingAlgorithm = async (io) => {
       let hasChanged = false;
 
       // 4. Calculate price based on Linked Financial Assets if available
-      if (product.linked_asset && assetCache[product.linked_asset]) {
-        const assetValue = assetCache[product.linked_asset];
+      const liveAssets = externalApis.getAssetCache();
+      if (product.linked_asset && liveAssets[product.linked_asset]) {
+        const assetValue = liveAssets[product.linked_asset];
         const multiplier = parseFloat(product.asset_multiplier);
+
         
         // Base price is augmented by the real-world asset value
         let calculatedAssetPrice = basePrice + (assetValue * multiplier);

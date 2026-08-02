@@ -44,3 +44,34 @@ Bảng này sẽ phình to rất nhanh vì mỗi 10 giây có thể lưu hàng c
 *   `product_id` (INT / FK)
 *   `quantity` (INT)
 *   `price_at_purchase` (DECIMAL 10,2): **Trường Cực Quan Trọng.** Lưu cứng giá của món ăn tại đúng giây mà khách hàng bấm mua, tránh việc khách mua xong giá thị trường thay đổi làm sai lệch hóa đơn.
+
+---
+
+### Bảng 6: `TABLES` (Danh mục Bàn & Sơ Đồ 2D)
+*   `id` (INT / PK)
+*   `table_number` (VARCHAR 20 / Unique)
+*   `zone` (VARCHAR 50): [ZONE_BAR, ZONE_MAIN, ZONE_VIP, ZONE_TERRACE]
+*   `pin_code` (VARCHAR 4): Mã PIN định danh 4 số chống quét nhầm bàn.
+*   `status` (VARCHAR 20): [AVAILABLE, RESERVED, OCCUPIED, CLEANING]
+
+### Bảng 7: `STATIONS` (Trạm Chế Biến KDS)
+*   `id` (INT / PK)
+*   `station_name` (VARCHAR 100): [STATION_BAR, STATION_HOT_KITCHEN, STATION_COLD_KITCHEN]
+*   `display_ip` (VARCHAR 50): Địa chỉ IP màn hình hiển thị tại trạm.
+
+### Bảng 8: `PURCHASE_ORDERS` (Đơn Mua Hàng Tự Động Nhà Cung Cấp)
+*   `id` (INT / PK)
+*   `raw_material_id` (INT / FK)
+*   `supplier_name` (VARCHAR 255)
+*   `order_qty` (DECIMAL 10,2)
+*   `unit_cost` (DECIMAL 10,2)
+*   `status` (VARCHAR 20): [DRAFT, SENT, DELIVERED, COMPLETED]
+
+### Bảng 9: `PAYMENT_LOGS` (Nhật Ký Auto-Topup Ngân Hàng VietQR)
+*   `id` (BIGINT / PK)
+*   `user_id` (INT / FK)
+*   `gateway` (VARCHAR 50): VD: MBBank, VPBank.
+*   `amount` (DECIMAL 12,2)
+*   `reference_code` (VARCHAR 100 / Unique)
+*   `created_at` (DATETIME)
+
