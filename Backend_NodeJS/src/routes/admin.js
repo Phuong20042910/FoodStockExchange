@@ -3,6 +3,8 @@ const router = express.Router();
 const db = require('../config/db');
 const auth = require('../middlewares/auth');
 const pricingEngine = require('../services/pricingEngine');
+const { body, param, query } = require('express-validator');
+const { checkValidationResult } = require('../middlewares/validate');
 
 /**
  * @swagger
@@ -91,7 +93,11 @@ router.get('/market/status', async (req, res) => {
  *       200:
  *         description: Configs updated
  */
-router.patch('/config', auth('ADMIN'), async (req, res) => {
+router.patch('/config', auth('ADMIN'), [
+  body('k_factor_amplifier').optional().isFloat({ min: 0 }),
+  body('idle_cool_down_minutes').optional().isFloat({ min: 0 }),
+  checkValidationResult
+], async (req, res) => {
   const { k_factor_amplifier, idle_cool_down_minutes } = req.body;
   try {
     if (k_factor_amplifier !== undefined) {
@@ -140,13 +146,13 @@ router.get('/users', auth(['ADMIN', 'CASHIER']), async (req, res) => {
  *     summary: Update user role (Admin only)
  *     tags: [Admin]
  */
-router.patch('/users/:id/role', auth('ADMIN'), async (req, res) => {
+router.patch('/users/:id/role', auth('ADMIN'), [
+  param('id').isInt({ min: 1 }).withMessage('User ID must be a valid integer'),
+  body('role').notEmpty().withMessage('Role is required').isIn(['CUSTOMER', 'CASHIER', 'KITCHEN', 'ADMIN']).withMessage('Invalid role'),
+  checkValidationResult
+], async (req, res) => {
   const { id } = req.params;
   const { role } = req.body;
-  const validRoles = ['CUSTOMER', 'CASHIER', 'KITCHEN', 'ADMIN'];
-  if (!role || !validRoles.includes(role.toUpperCase())) {
-    return res.status(400).json({ message: 'Invalid role' });
-  }
 
   try {
     const result = await db.query(
@@ -170,12 +176,13 @@ router.patch('/users/:id/role', auth('ADMIN'), async (req, res) => {
  *     summary: Directly adjust user wallet balance (Admin only)
  *     tags: [Admin]
  */
-router.patch('/users/:id/wallet', auth('ADMIN'), async (req, res) => {
+router.patch('/users/:id/wallet', auth('ADMIN'), [
+  param('id').isInt({ min: 1 }).withMessage('User ID must be a valid integer'),
+  body('new_balance').isFloat({ min: 0 }).withMessage('New balance must be a non-negative number'),
+  checkValidationResult
+], async (req, res) => {
   const { id } = req.params;
   const { new_balance } = req.body;
-  if (new_balance === undefined || isNaN(new_balance) || new_balance < 0) {
-    return res.status(400).json({ message: 'Invalid new balance' });
-  }
 
   try {
     const result = await db.query(
@@ -262,7 +269,11 @@ router.post('/products/import-global', auth('ADMIN'), async (req, res) => {
  *     summary: Live search Open Food Facts API (>3M global products including Vietnam)
  *     tags: [Admin]
  */
-router.get('/products/search-openfood', auth('ADMIN'), async (req, res) => {
+router.get('/products/search-openfood', auth('ADMIN'), [
+  query('query').optional().isString().trim().escape(),
+  query('country').optional().isString().trim().escape(),
+  checkValidationResult
+], async (req, res) => {
   const { query, country } = req.query;
   try {
     const results = await globalFoodApi.fetchOpenFoodFacts(query || 'coffee', country || 'vietnam');

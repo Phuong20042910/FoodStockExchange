@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const auth = require('../middlewares/auth');
+const { body, param } = require('express-validator');
+const { checkValidationResult } = require('../middlewares/validate');
 
 /**
  * @swagger
@@ -10,13 +12,15 @@ const auth = require('../middlewares/auth');
  *     summary: Place a new order with dynamic price checking
  *     tags: [Orders]
  */
-router.post('/place', auth(), async (req, res) => {
+router.post('/place', auth(), [
+  body('table_number').notEmpty().withMessage('Table number is required'),
+  body('items').isArray({ min: 1 }).withMessage('Items must be a non-empty array'),
+  body('items.*.product_id').isInt({ min: 1 }).withMessage('Product ID must be a positive integer'),
+  body('items.*.quantity').isInt({ min: 1 }).withMessage('Quantity must be a positive integer'),
+  checkValidationResult
+], async (req, res) => {
   const { table_number, items } = req.body;
   const userId = req.user.id;
-
-  if (!table_number || !items || !items.length) {
-    return res.status(400).json({ message: 'Table number and order items are required' });
-  }
 
   const client = await db.pool.connect();
   try {
@@ -111,6 +115,37 @@ router.post('/place', auth(), async (req, res) => {
       items: itemsToInsert
     });
 
+    // --- COPY TRADING LOGIC ---
+    // Fetch followers of this user
+    const followersRes = await client.query(`
+      SELECT f.follower_id, u.username as master_name
+      FROM followers f
+      JOIN users u ON u.id = f.master_id
+      WHERE f.master_id = $1
+    `, [userId]);
+
+    if (followersRes.rows.length > 0) {
+      // Find the most interesting item (highest quantity or most volatile)
+      const topItem = itemsToInsert[0];
+      const prodRes = await client.query('SELECT name FROM products WHERE id = $1', [topItem.product_id]);
+      const prodName = prodRes.rows[0].name;
+      
+      const masterName = followersRes.rows[0].master_name;
+
+      followersRes.rows.forEach(follower => {
+        io.emit(`COPY_TRADE_ALERT_${follower.follower_id}`, {
+          master_id: userId,
+          master_name: masterName,
+          product_id: topItem.product_id,
+          product_name: prodName,
+          price: topItem.price_at_purchase,
+          quantity: topItem.quantity,
+          message: `${masterName} vừa chốt đơn ${topItem.quantity} ${prodName} với giá ${topItem.price_at_purchase.toLocaleString()}đ! Bạn có muốn mua theo không?`
+        });
+      });
+    }
+    // --- END COPY TRADING ---
+
     return res.status(200).json({
       status: 'MATCHED',
       order_id: order.id,
@@ -137,7 +172,10 @@ router.post('/place', auth(), async (req, res) => {
  *     summary: Cancel order within 30s and pay 5% penalty
  *     tags: [Orders]
  */
-router.post('/:id/cancel', auth(), async (req, res) => {
+router.post('/:id/cancel', auth(), [
+  param('id').isUUID().withMessage('Order ID must be a valid UUID'),
+  checkValidationResult
+], async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
 
@@ -226,13 +264,14 @@ router.post('/:id/cancel', auth(), async (req, res) => {
  *     summary: Place a new auto-trigger limit order (Auto Buy)
  *     tags: [Orders]
  */
-router.post('/limit', auth(), async (req, res) => {
+router.post('/limit', auth(), [
+  body('product_id').isInt({ min: 1 }).withMessage('Product ID must be a positive integer'),
+  body('quantity').isInt({ min: 1 }).withMessage('Quantity must be a positive integer'),
+  body('target_price').isFloat({ min: 0 }).withMessage('Target price must be a positive number'),
+  checkValidationResult
+], async (req, res) => {
   const { product_id, quantity, target_price } = req.body;
   const userId = req.user.id;
-
-  if (!product_id || !quantity || !target_price) {
-    return res.status(400).json({ message: 'Product ID, quantity, and target price are required' });
-  }
 
   try {
     const productRes = await db.query('SELECT name FROM products WHERE id = $1', [product_id]);
@@ -283,7 +322,10 @@ router.get('/limit/my-limits', auth(), async (req, res) => {
  *     summary: Cancel a pending limit order
  *     tags: [Orders]
  */
-router.post('/limit/:id/cancel', auth(), async (req, res) => {
+router.post('/limit/:id/cancel', auth(), [
+  param('id').isInt({ min: 1 }).withMessage('Limit order ID must be a positive integer'),
+  checkValidationResult
+], async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
   try {
@@ -390,7 +432,11 @@ router.get('/pending', auth(['ADMIN', 'KITCHEN']), async (req, res) => {
  *     summary: Update order status (KDS kitchen workflow)
  *     tags: [Orders]
  */
-router.put('/:id/status', auth(['ADMIN', 'KITCHEN', 'CASHIER']), async (req, res) => {
+router.put('/:id/status', auth(['ADMIN', 'KITCHEN', 'CASHIER']), [
+  param('id').isUUID().withMessage('Order ID must be a valid UUID'),
+  body('status').notEmpty().withMessage('Status is required').isString(),
+  checkValidationResult
+], async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 

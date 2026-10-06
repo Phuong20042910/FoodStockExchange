@@ -7,6 +7,7 @@ export default function AiChatWidget() {
   const [budget, setBudget] = useState(100000);
   const [inputMsg, setInputMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('auto');
   const [messages, setMessages] = useState([
     {
       sender: 'bot',
@@ -43,18 +44,18 @@ export default function AiChatWidget() {
         `- ${p.name}: Giá hiện tại ${Math.round(p.current_price).toLocaleString()}đ (Gốc: ${Math.round(p.base_price).toLocaleString()}đ, Sàn: ${Math.round(p.min_price).toLocaleString()}đ, Trần: ${Math.round(p.max_price).toLocaleString()}đ) [Kategori: ${p.category}]`
       ).join('\n');
 
-      // 2. Post to AI Python Microservice
-      const res = await axios.post('http://localhost:8000/ai/advise', {
-        budget: activeBudget,
-        menu_context: menuContextStr
+      // 2. Post to Node.js AI Route
+      const res = await axios.post('http://localhost:5000/api/ai/chat', {
+        message: userQuery,
+        preferredModel: selectedModel
       });
 
       setMessages(prev => [
         ...prev,
         {
           sender: 'bot',
-          text: res.data.advice,
-          model: res.data.model
+          text: res.data.reply,
+          model: res.data.source
         }
       ]);
     } catch (err) {
@@ -106,7 +107,17 @@ export default function AiChatWidget() {
                 <h3 className="text-sm font-extrabold text-white flex items-center gap-1.5 font-mono">
                   AI BROKER CẠ NHẬU <span className="text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded uppercase font-bold">ONLINE</span>
                 </h3>
-                <p className="text-[10px] text-slate-400 font-mono">Powered by Groq Llama 3.1 & Gemini</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <select 
+                    value={selectedModel} 
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    className="bg-slate-950 border border-slate-700 text-[10px] text-slate-300 rounded px-1 py-0.5 font-mono outline-none focus:border-sky-500"
+                  >
+                    <option value="auto">Auto (Gemini 3.6 to Groq)</option>
+                    <option value="gemini">Google Gemini 3.6 Flash</option>
+                    <option value="groq">Groq Qwen 3.8 27B</option>
+                  </select>
+                </div>
               </div>
             </div>
             <button 

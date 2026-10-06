@@ -3,6 +3,8 @@ const router = express.Router();
 const db = require('../config/db');
 const auth = require('../middlewares/auth');
 const crypto = require('crypto');
+const { body, param, query } = require('express-validator');
+const { checkValidationResult } = require('../middlewares/validate');
 
 /**
  * @swagger
@@ -32,11 +34,12 @@ const crypto = require('crypto');
  *       403:
  *         description: Forbidden (Only Cashier or Admin)
  */
-router.post('/topup', auth(['ADMIN', 'CASHIER']), async (req, res) => {
+router.post('/topup', auth(['ADMIN', 'CASHIER']), [
+  body('user_id').notEmpty().withMessage('User ID is required').isInt({ min: 1 }).withMessage('User ID must be a positive integer'),
+  body('amount').notEmpty().withMessage('Amount is required').isFloat({ min: 1 }).withMessage('Amount must be a positive number'),
+  checkValidationResult
+], async (req, res) => {
   const { user_id, amount } = req.body;
-  if (!user_id || !amount || amount <= 0) {
-    return res.status(400).json({ message: 'User ID and positive amount are required' });
-  }
 
   const client = await db.pool.connect();
   try {
@@ -119,11 +122,13 @@ router.post('/topup', auth(['ADMIN', 'CASHIER']), async (req, res) => {
  *       200:
  *         description: Webhook processed & wallet credited
  */
-router.post('/webhook/sepay', async (req, res) => {
+router.post('/webhook/sepay', [
+  body('amountIn').notEmpty().withMessage('amountIn is required').isFloat({ min: 1 }).withMessage('amountIn must be a positive number'),
+  body('transactionContent').notEmpty().withMessage('transactionContent is required').isString(),
+  body('referenceNumber').optional().isString(),
+  checkValidationResult
+], async (req, res) => {
   const { amountIn, transactionContent, referenceNumber } = req.body;
-  if (!amountIn || amountIn <= 0 || !transactionContent) {
-    return res.status(400).json({ success: false, message: 'Invalid bank webhook payload' });
-  }
 
   // Parse NAP <USER_ID> syntax from bank transfer memo
   const match = transactionContent.match(/NAP\s*(\d+)/i);
@@ -217,7 +222,11 @@ router.get('/transactions', auth(), async (req, res) => {
  *     summary: Generate dynamic VietQR Napas247 Payment Image Link
  *     tags: [Wallet]
  */
-router.get('/vietqr/:userId', async (req, res) => {
+router.get('/vietqr/:userId', [
+  param('userId').notEmpty().withMessage('User ID is required').isInt({ min: 1 }).withMessage('User ID must be an integer'),
+  query('amount').optional().isFloat({ min: 1000 }).withMessage('Amount must be at least 1000'),
+  checkValidationResult
+], async (req, res) => {
   const { userId } = req.params;
   const amount = req.query.amount || 100000;
   const bankId = process.env.VIETQR_BANK_ID || 'MB';

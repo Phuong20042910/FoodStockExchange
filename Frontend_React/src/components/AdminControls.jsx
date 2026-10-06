@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useSocket } from '../context/SocketContext';
+import { parseApiError } from '../utils/apiErrorHandler';
+import { useToast } from '../context/ToastContext';
 import { 
   ShieldAlert, Settings, Flame, ShieldCheck, ThermometerSnowflake, Package, 
-  Lightbulb, Radio, Wifi, Users, UserCheck, Shield, Wallet, Edit3, Search, RefreshCw 
+  Lightbulb, Radio, Wifi, Users, UserCheck, Shield, Wallet, Edit3, Search, RefreshCw, BrainCircuit
 } from 'lucide-react';
 
 export default function AdminControls() {
+  const [marketStatus, setMarketStatus] = useState(null);
+  const { addToast } = useToast();
   const [materials, setMaterials] = useState([]);
   const [users, setUsers] = useState([]);
   const [userSearch, setUserSearch] = useState('');
@@ -14,13 +18,39 @@ export default function AdminControls() {
   const [idleMinutes, setIdleMinutes] = useState('10');
   const [liftPanicCover, setLiftPanicCover] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [configData, setConfigData] = useState({ volatility_factor: '1.0' });
+  const [productsList, setProductsList] = useState([]);
+  const [editingProductId, setEditingProductId] = useState(null);
+
+  // State for new product form
+  const [newProduct, setNewProduct] = useState({
+    name: '',
+    category: 'BEER',
+    base_price: '',
+    min_price: '',
+    max_price: '',
+    elasticity_k: '0.01',
+    image_url: ''
+  });
+  const [isSubmittingProduct, setIsSubmittingProduct] = useState(false);
+  const [isAiThinking, setIsAiThinking] = useState(false);
 
   const { crashData } = useSocket() || {};
 
   useEffect(() => {
     fetchMaterials();
     fetchUsers();
+    fetchProducts();
   }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const res = await axios.get('http://localhost:5000/api/products');
+      setProductsList(res.data);
+    } catch (err) {
+      console.error('Fetch products error:', err);
+    }
+  };
 
   const fetchMaterials = async () => {
     try {
@@ -53,10 +83,10 @@ export default function AdminControls() {
         { role: newRole },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert(`Đã cập nhật vai trò người dùng #${userId} sang ${newRole}!`);
+      addToast(`Đã cập nhật vai trò người dùng #${userId} sang ${newRole}!`, 'success');
       fetchUsers();
     } catch (err) {
-      alert('Lỗi khi cập nhật vai trò.');
+      addToast(parseApiError(err) || 'Lỗi khi cập nhật vai trò.', 'error');
     }
   };
 
@@ -65,20 +95,20 @@ export default function AdminControls() {
     if (input === null) return;
     const newBal = parseFloat(input);
     if (isNaN(newBal) || newBal < 0) {
-      alert('Số tiền không hợp lệ.');
+      addToast('Số tiền không hợp lệ.', 'error');
       return;
     }
 
     try {
       const token = localStorage.getItem('token');
       await axios.patch(`http://localhost:5000/api/admin/users/${userId}/wallet`,
-        { new_balance: newBal },
+        { wallet_balance: newBal },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert(`Đã cập nhật số dư ví Trader #${userId} thành ${newBal.toLocaleString()}đ!`);
+      addToast(`Đã cập nhật số dư ví Trader #${userId} thành ${newBal.toLocaleString()}đ!`, 'success');
       fetchUsers();
     } catch (err) {
-      alert('Không thể cập nhật số dư ví.');
+      addToast(parseApiError(err) || 'Không thể cập nhật số dư ví.', 'error');
     }
   };
 
@@ -88,11 +118,11 @@ export default function AdminControls() {
       const token = localStorage.getItem('token');
       await axios.patch('http://localhost:5000/api/admin/config', {
         k_factor_amplifier: kAmplifier,
-        idle_cool_down_minutes: idleMinutes
+        volatility_factor: parseFloat(configData.volatility_factor)
       }, { headers: { Authorization: `Bearer ${token}` } });
-      alert('Đã lưu cấu hình thị trường thành công!');
+      addToast('Đã lưu cấu hình thị trường thành công!', 'success');
     } catch (err) {
-      alert('Không thể lưu cấu hình.');
+      addToast(parseApiError(err) || 'Không thể lưu cấu hình.', 'error');
     }
   };
 
@@ -100,38 +130,158 @@ export default function AdminControls() {
     if (!liftPanicCover) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5000/api/admin/market/crash', {}, {
+      await axios.post('http://localhost:5000/api/admin/trigger-crash', {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      alert('CẢNH BÁO: Đã kích hoạt sập sàn đồ uống toàn hệ thống!');
+      addToast('CẢNH BÁO: Đã kích hoạt sập sàn đồ uống toàn hệ thống!', 'error');
       setLiftPanicCover(false);
     } catch (err) {
-      alert('Không thể kích hoạt.');
+      addToast(parseApiError(err) || 'Không thể kích hoạt.', 'error');
     }
   };
 
   const handleStabilize = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5000/api/admin/market/stabilize', {}, {
+      await axios.post('http://localhost:5000/api/admin/stabilize', {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      alert('Đã bình ổn giá trị thị trường.');
+      addToast('Đã bình ổn giá trị thị trường.', 'success');
     } catch (err) {
-      alert('Bình ổn thất bại.');
+      addToast(parseApiError(err) || 'Bình ổn thất bại.', 'error');
     }
   };
 
   const handleImportGlobalProducts = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post('http://localhost:5000/api/admin/products/import-global', {}, {
+      const res = await axios.post('http://localhost:5000/api/admin/import-global-products', {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      alert(res.data.message || 'Đã đồng bộ thành công menu thực phẩm & đồ uống quốc tế!');
+      addToast(res.data.message || 'Đã đồng bộ thành công menu thực phẩm & đồ uống quốc tế!', 'success');
     } catch (err) {
-      alert('Không thể đồng bộ menu quốc tế.');
+      addToast(parseApiError(err) || 'Không thể đồng bộ menu quốc tế.', 'error');
     }
+  };
+
+  const handleSaveProduct = async (e) => {
+    e.preventDefault();
+    setIsSubmittingProduct(true);
+    try {
+      const token = localStorage.getItem('token');
+      const payload = {
+        ...newProduct,
+        base_price: parseFloat(newProduct.base_price),
+        min_price: parseFloat(newProduct.min_price),
+        max_price: parseFloat(newProduct.max_price),
+        elasticity_k: parseFloat(newProduct.elasticity_k)
+      };
+
+      if (editingProductId) {
+        await axios.put(`http://localhost:5000/api/products/${editingProductId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+        addToast('Cập nhật thông số món thành công!', 'success');
+      } else {
+        await axios.post('http://localhost:5000/api/products', payload, { headers: { Authorization: `Bearer ${token}` } });
+        addToast('Thêm mã cổ phiếu đồ uống mới lên sàn thành công!', 'success');
+      }
+      
+      setNewProduct({ name: '', category: 'BEER', base_price: '', min_price: '', max_price: '', elasticity_k: '0.01', image_url: '' });
+      setEditingProductId(null);
+      fetchProducts();
+    } catch (err) {
+      addToast(parseApiError(err) || 'Lỗi khi lưu món mới/sửa.', 'error');
+    } finally {
+      setIsSubmittingProduct(false);
+    }
+  };
+
+  const handleEditProductClick = (prod) => {
+    setEditingProductId(prod.id);
+    setNewProduct({
+      name: prod.name,
+      category: prod.category,
+      base_price: prod.base_price,
+      min_price: prod.min_price,
+      max_price: prod.max_price,
+      elasticity_k: prod.elasticity_k,
+      image_url: prod.image_url || ''
+    });
+    window.scrollTo({ top: 300, behavior: 'smooth' });
+  };
+  
+  const handleCancelEdit = () => {
+    setEditingProductId(null);
+    setNewProduct({ name: '', category: 'BEER', base_price: '', min_price: '', max_price: '', elasticity_k: '0.01', image_url: '' });
+  };
+
+  const handleAiSuggest = () => {
+    if (!newProduct.name) {
+      addToast('Vui lòng nhập Tên món trước để AI có thể phân tích!', 'error');
+      return;
+    }
+    
+    setIsAiThinking(true);
+    
+    // Giả lập thời gian AI phân tích (trong thực tế sẽ gọi API LLM OpenAI / Gemini)
+    setTimeout(() => {
+      const nameLower = newProduct.name.toLowerCase();
+      let category = 'BEER';
+      let base = 30000;
+      let min = 20000;
+      let max = 60000;
+      let k = '0.015';
+      let imgKeyword = 'drink,glass';
+
+      const imageMap = {
+        wine: ['https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=500', 'https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?w=500'],
+        spirit: ['https://images.unsplash.com/photo-1527281400683-1aae777175f8?w=500', 'https://images.unsplash.com/photo-1614316938955-46f90117a3a3?w=500'],
+        coffee: ['https://images.unsplash.com/photo-1497935586351-b67a49e012bf?w=500', 'https://images.unsplash.com/photo-1461023058943-0708e5223eeb?w=500', 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=500'],
+        tea: ['https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=500', 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=500'],
+        boba: ['https://images.unsplash.com/photo-1558857563-b37102e99e00?w=500'],
+        juice: ['https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=500', 'https://images.unsplash.com/photo-1622597467836-f38240662f55?w=500'],
+        cocktail: ['https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=500', 'https://images.unsplash.com/photo-1536935338788-846bb9981813?w=500'],
+        soda: ['https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=500', 'https://images.unsplash.com/photo-1556881286-fc6915169721?w=500'],
+        snack: ['https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=500', 'https://images.unsplash.com/photo-1623653387945-2fd256d40c6c?w=500'],
+        noodle: ['https://images.unsplash.com/photo-1585032226651-759b368d7246?w=500', 'https://images.unsplash.com/photo-1552611052-33e04de081de?w=500'],
+        rice: ['https://images.unsplash.com/photo-1512058564366-18510be2db19?w=500'],
+        meat: ['https://images.unsplash.com/photo-1544025162-d76694265947?w=500'],
+        dessert: ['https://images.unsplash.com/photo-1551024601-bec78aea704b?w=500', 'https://images.unsplash.com/photo-1464349153735-7db50ed83c84?w=500'],
+        beer: ['https://images.unsplash.com/photo-1608270586620-248524c67de9?w=500', 'https://images.unsplash.com/photo-1532634922-8fe0b757fb13?w=500'],
+        default: ['https://images.unsplash.com/photo-1414235077428-338988692140?w=500', 'https://images.unsplash.com/photo-1498654896293-37aacf113fd9?w=500']
+      };
+
+      let categoryKey = 'default';
+      if (nameLower.includes('vang') || nameLower.includes('wine')) categoryKey = 'wine';
+      else if (nameLower.includes('rượu') || nameLower.includes('whisky') || nameLower.includes('vodka') || nameLower.includes('chivas')) categoryKey = 'spirit';
+      else if (nameLower.includes('cà phê') || nameLower.includes('cafe') || nameLower.includes('coffee')) categoryKey = 'coffee';
+      else if (nameLower.includes('trà sữa') || nameLower.includes('boba')) categoryKey = 'boba';
+      else if (nameLower.includes('trà') || nameLower.includes('tea')) categoryKey = 'tea';
+      else if (nameLower.includes('sinh tố') || nameLower.includes('nước ép') || nameLower.includes('juice')) categoryKey = 'juice';
+      else if (nameLower.includes('cocktail') || nameLower.includes('margarita')) categoryKey = 'cocktail';
+      else if (nameLower.includes('nước') || nameLower.includes('coca') || nameLower.includes('nước ngọt')) categoryKey = 'soda';
+      else if (nameLower.includes('khô') || nameLower.includes('khoai') || nameLower.includes('mực') || nameLower.includes('đậu') || nameLower.includes('snack')) categoryKey = 'snack';
+      else if (nameLower.includes('mì') || nameLower.includes('bún') || nameLower.includes('phở')) categoryKey = 'noodle';
+      else if (nameLower.includes('cơm')) categoryKey = 'rice';
+      else if (nameLower.includes('bò') || nameLower.includes('gà') || nameLower.includes('thịt')) categoryKey = 'meat';
+      else if (nameLower.includes('bánh') || nameLower.includes('kem') || nameLower.includes('tráng miệng')) categoryKey = 'dessert';
+      else if (nameLower.includes('bia') || nameLower.includes('heineken') || nameLower.includes('tiger') || nameLower.includes('budweiser')) categoryKey = 'beer';
+
+      const imgList = imageMap[categoryKey] || imageMap.default;
+      const finalImage = imgList[Math.floor(Math.random() * imgList.length)];
+
+      setNewProduct(prev => ({
+        ...prev,
+        category,
+        base_price: base.toString(),
+        min_price: min.toString(),
+        max_price: max.toString(),
+        elasticity_k: k,
+        image_url: finalImage
+      }));
+
+      addToast('AI Broker đã điền xong thông số niêm yết và tìm ảnh phù hợp!', 'success');
+      setIsAiThinking(false);
+    }, 1500);
   };
 
   const filteredUsers = users.filter(u => 
@@ -299,6 +449,162 @@ export default function AdminControls() {
           </div>
         </div>
 
+      </div>
+
+      {/* Add New Product Section */}
+      <div className="max-w-7xl mx-auto px-6 mt-8">
+        <div className="border border-slate-800 bg-slate-900/80 backdrop-blur-xl p-6 rounded-2xl shadow-xl">
+          <div className="flex items-center gap-3 border-b border-slate-800 pb-4 mb-6">
+            <span className="p-2.5 bg-sky-500/10 border border-sky-500/30 text-sky-400 rounded-xl">
+              <Edit3 className="h-6 w-6 text-sky-400" />
+            </span>
+            <div>
+              <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                NIÊM YẾT MÓN MỚI (IPO MÃ ĐỒ UỐNG)
+              </h3>
+              <p className="text-xs text-slate-400 font-mono">Thêm thủ công các sản phẩm vào menu giao dịch với biên độ giá tự do</p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSaveProduct} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="lg:col-span-2 relative">
+              <label className="text-[10px] text-slate-400 font-mono block mb-1">Tên món ăn/đồ uống</label>
+              <div className="flex gap-2">
+                <input type="text" required value={newProduct.name} onChange={(e) => setNewProduct({...newProduct, name: e.target.value})} className="flex-1 bg-slate-950 border border-slate-800 p-2.5 rounded-xl text-sm text-white focus:outline-none focus:border-sky-400" placeholder="VD: Trà Đào Cam Sả" />
+                <button 
+                  type="button" 
+                  onClick={handleAiSuggest}
+                  disabled={isAiThinking}
+                  className="px-4 py-2 bg-purple-500/20 text-purple-300 border border-purple-500/40 rounded-xl hover:bg-purple-500/35 transition font-bold text-[11px] font-mono whitespace-nowrap flex items-center gap-1.5"
+                >
+                  <BrainCircuit className={`h-3.5 w-3.5 ${isAiThinking ? 'animate-pulse' : ''}`} />
+                  {isAiThinking ? 'AI ĐANG PHÂN TÍCH...' : '✨ AI ĐỊNH GIÁ MÓN'}
+                </button>
+              </div>
+            </div>
+            
+            <div>
+              <label className="text-[10px] text-slate-400 font-mono block mb-1">Danh mục</label>
+              <select value={newProduct.category} onChange={(e) => setNewProduct({...newProduct, category: e.target.value})} className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded-xl text-sm text-white focus:outline-none focus:border-sky-400">
+                <option value="BEER">BEER (Bia)</option>
+                <option value="COCKTAIL">COCKTAIL (Cocktail pha chế)</option>
+                <option value="WINE">WINE (Rượu vang)</option>
+                <option value="SPIRIT">SPIRIT (Rượu mạnh)</option>
+                <option value="SOFT_DRINK">SOFT DRINK (Nước ngọt/Có gas)</option>
+                <option value="COFFEE">COFFEE (Cà phê)</option>
+                <option value="TEA">TEA (Trà & Trà sữa)</option>
+                <option value="JUICE">JUICE (Nước ép & Sinh tố)</option>
+                <option value="FOOD">FOOD (Đồ ăn chính)</option>
+                <option value="SNACK">SNACK (Đồ ăn vặt/Mồi nhậu)</option>
+                <option value="DESSERT">DESSERT (Tráng miệng)</option>
+                <option value="OTHER">OTHER (Khác)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[10px] text-slate-400 font-mono block mb-1">Hình ảnh (URL)</label>
+              <input type="url" value={newProduct.image_url} onChange={(e) => setNewProduct({...newProduct, image_url: e.target.value})} className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded-xl text-sm text-white focus:outline-none focus:border-sky-400" placeholder="https://..." />
+            </div>
+
+            <div>
+              <label className="text-[10px] text-slate-400 font-mono block mb-1">Giá IPO (Giá gốc VNĐ)</label>
+              <input type="number" required min="0" value={newProduct.base_price} onChange={(e) => setNewProduct({...newProduct, base_price: e.target.value})} className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded-xl text-sm text-white focus:outline-none focus:border-sky-400 font-share-mono" placeholder="VD: 50000" />
+            </div>
+
+            <div>
+              <label className="text-[10px] text-slate-400 font-mono block mb-1">Giá SÀN (Min VNĐ)</label>
+              <input type="number" required min="0" value={newProduct.min_price} onChange={(e) => setNewProduct({...newProduct, min_price: e.target.value})} className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded-xl text-sm text-rose-400 focus:outline-none focus:border-sky-400 font-share-mono" placeholder="VD: 30000" />
+            </div>
+
+            <div>
+              <label className="text-[10px] text-slate-400 font-mono block mb-1">Giá TRẦN (Max VNĐ)</label>
+              <input type="number" required min="0" value={newProduct.max_price} onChange={(e) => setNewProduct({...newProduct, max_price: e.target.value})} className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded-xl text-sm text-emerald-400 focus:outline-none focus:border-sky-400 font-share-mono" placeholder="VD: 90000" />
+            </div>
+
+            <div>
+              <label className="text-[10px] text-slate-400 font-mono block mb-1">Hệ số biến động (K-factor)</label>
+              <input type="number" step="0.001" required min="0" value={newProduct.elasticity_k} onChange={(e) => setNewProduct({...newProduct, elasticity_k: e.target.value})} className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded-xl text-sm text-sky-400 focus:outline-none focus:border-sky-400 font-share-mono" placeholder="VD: 0.01" />
+            </div>
+
+            <div className="lg:col-span-4 mt-2 flex gap-3">
+              <button 
+                type="submit" 
+                disabled={isSubmittingProduct}
+                className="flex-1 py-3 bg-gradient-to-r from-sky-500/20 to-emerald-500/20 text-sky-300 hover:from-sky-500/30 hover:to-emerald-500/30 border border-sky-500/40 rounded-xl font-bold font-mono tracking-wider transition uppercase flex items-center justify-center gap-2"
+              >
+                {isSubmittingProduct ? 'ĐANG XỬ LÝ...' : (editingProductId ? 'LƯU CẬP NHẬT MÓN (UPDATE)' : 'XÁC NHẬN NIÊM YẾT MÓN LÊN SÀN GIAO DỊCH')}
+              </button>
+              
+              {editingProductId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-6 py-3 bg-rose-500/10 text-rose-400 border border-rose-500/30 rounded-xl font-bold font-mono hover:bg-rose-500/20 transition uppercase tracking-wider"
+                >
+                  HỦY SỬA
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
+      </div>
+      
+      {/* Product List Table */}
+      <div className="max-w-7xl mx-auto px-6 mt-8">
+        <div className="border border-slate-800 bg-slate-900/80 backdrop-blur-xl p-6 rounded-2xl shadow-xl">
+          <div className="flex items-center gap-3 border-b border-slate-800 pb-4 mb-4">
+            <span className="p-2.5 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 rounded-xl">
+              <Package className="h-6 w-6 text-indigo-400" />
+            </span>
+            <div>
+              <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                QUẢN LÝ DANH SÁCH MÓN ĐANG NIÊM YẾT
+              </h3>
+              <p className="text-xs text-slate-400 font-mono">Chỉnh sửa thông số, mức giá trần/sàn của các món ăn đồ uống</p>
+            </div>
+          </div>
+          
+          <div className="overflow-x-auto max-h-[400px]">
+            <table className="w-full text-left font-mono text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-800 text-slate-400 uppercase text-[10px] bg-slate-950/60 sticky top-0">
+                  <th className="p-3">ID</th>
+                  <th className="p-3">TÊN MÓN</th>
+                  <th className="p-3">DANH MỤC</th>
+                  <th className="p-3 text-right">GIÁ GỐC (VNĐ)</th>
+                  <th className="p-3 text-right">BIÊN ĐỘ (MIN - MAX)</th>
+                  <th className="p-3 text-center">HỆ SỐ K</th>
+                  <th className="p-3 text-center">THAO TÁC</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/80">
+                {productsList.map(p => (
+                  <tr key={p.id} className="hover:bg-slate-800/40 transition">
+                    <td className="p-3 text-slate-400">#{p.id}</td>
+                    <td className="p-3 font-bold text-white flex items-center gap-3">
+                      {p.image_url && <img src={p.image_url} alt="" className="w-8 h-8 rounded-lg object-cover border border-slate-700" />}
+                      {p.name}
+                    </td>
+                    <td className="p-3 text-sky-400">{p.category}</td>
+                    <td className="p-3 text-right font-bold">{parseFloat(p.base_price).toLocaleString()}</td>
+                    <td className="p-3 text-right text-slate-400">
+                      <span className="text-rose-400">{parseFloat(p.min_price).toLocaleString()}</span> - <span className="text-emerald-400">{parseFloat(p.max_price).toLocaleString()}</span>
+                    </td>
+                    <td className="p-3 text-center text-amber-300">{p.elasticity_k}</td>
+                    <td className="p-3 text-center">
+                      <button 
+                        onClick={() => handleEditProductClick(p)}
+                        className="px-3 py-1.5 bg-sky-500/20 text-sky-300 hover:bg-sky-500/35 border border-sky-500/30 rounded-lg text-[10px] font-bold font-mono transition inline-flex items-center gap-1"
+                      >
+                        <Edit3 className="h-3 w-3" /> SỬA
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {/* User Management & Role Permissions Section */}

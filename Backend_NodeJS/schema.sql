@@ -36,7 +36,7 @@ CREATE TABLE users (
 CREATE TABLE products (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) UNIQUE NOT NULL,
-    category VARCHAR(50) NOT NULL CHECK (category IN ('BEER', 'COCKTAIL', 'FOOD', 'SOFT_DRINK')),
+    category VARCHAR(50) NOT NULL CHECK (category IN ('BEER', 'COCKTAIL', 'WINE', 'SPIRIT', 'SOFT_DRINK', 'COFFEE', 'TEA', 'JUICE', 'FOOD', 'SNACK', 'DESSERT', 'OTHER')),
     image_url VARCHAR(500),
     base_price DECIMAL(12,2) NOT NULL,
     current_price DECIMAL(12,2) NOT NULL,
@@ -134,6 +134,15 @@ CREATE TABLE system_config (
     key VARCHAR(100) PRIMARY KEY,
     value TEXT NOT NULL,
     description TEXT
+);
+
+-- 12. FOLLOWERS (Copy-Trading)
+CREATE TABLE followers (
+    id SERIAL PRIMARY KEY,
+    follower_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    master_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (follower_id, master_id)
 );
 
 -- ==========================================

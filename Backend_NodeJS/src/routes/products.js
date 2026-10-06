@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const auth = require('../middlewares/auth');
+const { predictNextPrice } = require('../services/predictor');
+const { body, param } = require('express-validator');
+const { checkValidationResult } = require('../middlewares/validate');
 
 /**
  * @swagger
@@ -35,7 +38,10 @@ router.get('/', async (req, res) => {
  *     summary: Get price history of a product for chart plotting
  *     tags: [Products]
  */
-router.get('/:id/history', async (req, res) => {
+router.get('/:id/history', [
+  param('id').isInt({ min: 1 }).withMessage('Product ID must be a valid positive integer'),
+  checkValidationResult
+], async (req, res) => {
   const { id } = req.params;
   try {
     const result = await db.query(`
@@ -66,7 +72,10 @@ router.get('/:id/history', async (req, res) => {
  *     summary: Get machine learning price forecast for the next tick (Delegated to Python FastAPI Service)
  *     tags: [Products]
  */
-router.get('/:id/predict', async (req, res) => {
+router.get('/:id/predict', [
+  param('id').isInt({ min: 1 }).withMessage('Product ID must be a valid positive integer'),
+  checkValidationResult
+], async (req, res) => {
   const { id } = req.params;
   try {
     // 1. Fetch recent price history (last 15 records)
@@ -87,29 +96,17 @@ router.get('/:id/predict', async (req, res) => {
     // Convert history list (ordered newest to oldest) to list of floats, and reverse it (oldest to newest for ML)
     const prices = historyRes.rows.map(h => parseFloat(h.recorded_price)).reverse();
 
-    // 2. Call Python FastAPI predict service
-    const pythonPredictUrl = 'http://localhost:8000/ai/predict';
-    const response = await fetch(pythonPredictUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ prices })
+    // 2. Call local Node Predictor Service
+    const predicted = predictNextPrice(prices);
+
+    return res.json({
+      predicted_price: Math.round(predicted),
+      source: 'Local Node.js Predictor'
     });
 
-    if (response.ok) {
-      const data = await response.json();
-      return res.json({
-        predicted_price: Math.round(data.predicted_price),
-        source: 'Scikit-Learn ML LinearRegression'
-      });
-    } else {
-      throw new Error('Python ML Predictor failed');
-    }
-
   } catch (err) {
-    console.error('Error fetching ML prediction from Python service:', err.message);
-    // Fallback if Python is down: return latest recorded price
+    console.error('Error fetching ML prediction:', err.message);
+    // Fallback on error: return latest recorded price
     const prodRes = await db.query('SELECT current_price FROM products WHERE id = $1', [id]);
     const currentPrice = prodRes.rows[0] ? parseFloat(prodRes.rows[0].current_price) : 0.0;
     return res.json({
@@ -126,11 +123,17 @@ router.get('/:id/predict', async (req, res) => {
  *     summary: Create a new product (Admin)
  *     tags: [Products]
  */
-router.post('/', auth('ADMIN'), async (req, res) => {
+router.post('/', auth('ADMIN'), [
+  body('name').notEmpty().withMessage('Product name is required').isString(),
+  body('category').notEmpty().withMessage('Category is required').isString(),
+  body('base_price').notEmpty().withMessage('Base price is required').isFloat({ min: 0 }).withMessage('Base price must be a positive number'),
+  body('min_price').notEmpty().withMessage('Min price is required').isFloat({ min: 0 }),
+  body('max_price').notEmpty().withMessage('Max price is required').isFloat({ min: 0 }),
+  body('elasticity_k').optional().isFloat(),
+  body('image_url').optional().isURL().withMessage('Invalid image URL'),
+  checkValidationResult
+], async (req, res) => {
   const { name, category, image_url, base_price, min_price, max_price, elasticity_k } = req.body;
-  if (!name || !category || !base_price || !min_price || !max_price) {
-    return res.status(400).json({ message: 'Missing required parameters' });
-  }
 
   try {
     const result = await db.query(`
@@ -142,7 +145,51 @@ router.post('/', auth('ADMIN'), async (req, res) => {
     return res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Create product error:', err);
-    return res.status(500).json({ message: 'Internal Server Error' });
+    return res.status(500).json({ message: err.message || 'Internal Server Error', detail: err.detail });
+  }
+});
+
+/**
+ * @swagger
+ * /api/products/{id}:
+ *   put:
+ *     summary: Update product details (Admin)
+ *     tags: [Products]
+ */
+router.put('/:id', auth('ADMIN'), [
+  param('id').isInt({ min: 1 }),
+  body('name').optional().isString(),
+  body('category').optional().isString(),
+  body('base_price').optional().isFloat({ min: 0 }),
+  body('min_price').optional().isFloat({ min: 0 }),
+  body('max_price').optional().isFloat({ min: 0 }),
+  body('elasticity_k').optional().isFloat(),
+  body('image_url').optional().isURL(),
+  checkValidationResult
+], async (req, res) => {
+  const { id } = req.params;
+  const { name, category, image_url, base_price, min_price, max_price, elasticity_k } = req.body;
+
+  try {
+    const result = await db.query(`
+      UPDATE products 
+      SET 
+        name = COALESCE($1, name),
+        category = COALESCE($2, category),
+        image_url = COALESCE($3, image_url),
+        base_price = COALESCE($4, base_price),
+        min_price = COALESCE($5, min_price),
+        max_price = COALESCE($6, max_price),
+        elasticity_k = COALESCE($7, elasticity_k)
+      WHERE id = $8
+      RETURNING *
+    `, [name, category, image_url, base_price, min_price, max_price, elasticity_k, id]);
+
+    if (result.rows.length === 0) return res.status(404).json({ message: 'Product not found' });
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Update product error:', err);
+    return res.status(500).json({ message: err.message || 'Internal Server Error' });
   }
 });
 
@@ -153,7 +200,10 @@ router.post('/', auth('ADMIN'), async (req, res) => {
  *     summary: Toggle product trading availability (Kitchen / Admin Out-Of-Stock trigger)
  *     tags: [Products]
  */
-router.patch('/:id/toggle-trading', auth(['ADMIN', 'KITCHEN']), async (req, res) => {
+router.patch('/:id/toggle-trading', auth(['ADMIN', 'KITCHEN']), [
+  param('id').isInt({ min: 1 }).withMessage('Product ID must be a valid positive integer'),
+  checkValidationResult
+], async (req, res) => {
   const { id } = req.params;
   try {
     const result = await db.query(

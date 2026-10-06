@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
+import { parseApiError } from '../utils/apiErrorHandler';
+import { useToast } from '../context/ToastContext';
 import ProductDetailModal from './ProductDetailModal';
 import { 
   AlertOctagon, TrendingUp, TrendingDown, Clock, ShoppingCart, 
@@ -181,8 +183,9 @@ export default function TradingBoard() {
   const [deliveryQuote, setDeliveryQuote] = useState(null);
   const [deliveryLoading, setDeliveryLoading] = useState(false);
 
-  const { priceUpdates, crashData, haltedProducts, p2pUpdates, socket } = useSocket() || {};
+  const { socket, crashData, priceUpdates, haltedProducts, p2pUpdates } = useSocket() || { crashData: { isCrash: false, remaining: 0 } };
   const { user, setUser, logout } = useAuth();
+  const { addToast } = useToast();
 
   const [flashStates, setFlashStates] = useState({});
 
@@ -240,7 +243,7 @@ export default function TradingBoard() {
 
     const eventName = `LIMIT_ORDER_FILLED_${user.id}`;
     socket.on(eventName, (data) => {
-      alert(`🔔 LỆNH CHỜ KHỚP THÀNH CÔNG!\nĐã tự động mua ${data.qty} ${data.product_name} tại giá ${data.executed_price.toLocaleString()}đ.`);
+      addToast(`🔔 LỆNH CHỜ KHỚP THÀNH CÔNG!\nĐã tự động mua ${data.qty} ${data.product_name} tại giá ${data.executed_price.toLocaleString()}đ.`, 'info');
       fetchMyLimits();
       fetchMyOrders();
       fetchMyTickets();
@@ -327,7 +330,7 @@ export default function TradingBoard() {
       });
       setDeliveryQuote(res.data);
     } catch (err) {
-      alert('Không thể tính toán phí giao hàng.');
+      addToast(parseApiError(err) || 'Không thể tính toán phí giao hàng.', 'error');
     } finally {
       setDeliveryLoading(false);
     }
@@ -349,7 +352,7 @@ export default function TradingBoard() {
         table_number: isDelivery ? 'DELIVERY' : tableNumber,
         items: cart
       });
-      alert('Đặt lệnh thành công!');
+      addToast('Đặt lệnh thành công!', 'success');
       setCart([]);
       setDeliveryQuote(null);
       setIsDelivery(false);
@@ -359,7 +362,7 @@ export default function TradingBoard() {
         setUser(prev => ({ ...prev, wallet_balance: res.data.new_balance }));
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Không thể đặt món. Vui lòng thử lại.');
+      addToast(parseApiError(err) || 'Không thể đặt món. Vui lòng thử lại.', 'error');
     }
   };
 
@@ -367,7 +370,7 @@ export default function TradingBoard() {
     if (!window.confirm('Hủy lệnh trong vòng 30s sẽ chịu mức phạt 5% phí. Bạn có chắc muốn hủy?')) return;
     try {
       const res = await axios.post(`http://localhost:5000/api/orders/${orderId}/cancel`);
-      alert(`Đã hủy thành công. Đã hoàn trả lại ${res.data.refund_amount.toLocaleString()} VND`);
+      addToast(`Đã hủy thành công. Đã hoàn trả lại ${res.data.refund_amount.toLocaleString()} VND`, 'success');
       fetchMyOrders();
       fetchMyTickets();
       if (user) {
@@ -375,7 +378,7 @@ export default function TradingBoard() {
         setUser(meRes.data);
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Hủy đơn thất bại.');
+      addToast(parseApiError(err) || 'Hủy đơn thất bại.', 'error');
     }
   }, [user, setUser]);
 
@@ -388,28 +391,28 @@ export default function TradingBoard() {
         quantity: parseInt(limitQty),
         target_price: parseFloat(limitPrice)
       });
-      alert('Đã thiết lập Lệnh Chờ Tự Động!');
+      addToast('Đã thiết lập Lệnh Chờ Tự Động!', 'success');
       setLimitPrice('');
       fetchMyLimits();
     } catch (err) {
-      alert(err.response?.data?.message || 'Lỗi đặt lệnh chờ.');
+      addToast(parseApiError(err) || 'Lỗi đặt lệnh chờ.', 'error');
     }
   };
 
   const handleCancelLimit = async (limitId) => {
     try {
       await axios.post(`http://localhost:5000/api/orders/limit/${limitId}/cancel`);
-      alert('Đã hủy lệnh chờ.');
+      addToast('Đã hủy lệnh chờ.', 'success');
       fetchMyLimits();
     } catch (err) {
-      alert(err.response?.data?.message || 'Hủy lệnh chờ thất bại.');
+      addToast(parseApiError(err) || 'Hủy lệnh chờ thất bại.', 'error');
     }
   };
 
   const handleListP2P = async (orderItemId) => {
     const price = p2pResalePrice[orderItemId];
     if (!price || parseFloat(price) <= 0) {
-      alert('Vui lòng nhập giá treo bán hợp lệ.');
+      addToast('Vui lòng nhập giá treo bán hợp lệ.', 'error');
       return;
     }
     try {
@@ -417,11 +420,11 @@ export default function TradingBoard() {
         order_item_id: parseInt(orderItemId),
         price: parseFloat(price)
       });
-      alert('Đã treo bán vé đồ uống lên chợ thứ cấp!');
+      addToast('Đã treo bán vé đồ uống lên chợ thứ cấp!', 'success');
       fetchMyTickets();
       fetchP2PListings();
     } catch (err) {
-      alert(err.response?.data?.message || 'Không thể treo bán.');
+      addToast(parseApiError(err) || 'Không thể treo bán.', 'error');
     }
   };
 
@@ -429,25 +432,25 @@ export default function TradingBoard() {
     if (!window.confirm('Xác nhận mua lại vé đồ uống này?')) return;
     try {
       const res = await axios.post('http://localhost:5000/api/p2p/buy', { listing_id: listingId });
-      alert(`Đã mua lại thành công!`);
+      addToast(`Đã mua lại thành công!`, 'success');
       fetchP2PListings();
       fetchMyTickets();
       if (user) {
         setUser(prev => ({ ...prev, wallet_balance: res.data.new_balance }));
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Không thể mua lại vé.');
+      addToast(parseApiError(err) || 'Không thể mua lại vé.', 'error');
     }
   };
 
   const handleCancelP2P = async (listingId) => {
     try {
       await axios.post(`http://localhost:5000/api/p2p/listing/${listingId}/cancel`);
-      alert('Đã hủy treo bán.');
+      addToast('Đã hủy treo bán.', 'success');
       fetchP2PListings();
       fetchMyTickets();
     } catch (err) {
-      alert(err.response?.data?.message || 'Hủy thất bại.');
+      addToast(parseApiError(err) || 'Hủy thất bại.', 'error');
     }
   };
 

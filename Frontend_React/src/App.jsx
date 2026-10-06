@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { SocketProvider } from './context/SocketContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { useToast } from './context/ToastContext';
 import TradingBoard from './components/TradingBoard';
 import KdsBoard from './components/KdsBoard';
 import PosConsole from './components/PosConsole';
 import AdminControls from './components/AdminControls';
 import AiChatWidget from './components/AiChatWidget';
+import CopyTradeAlert from './components/CopyTradeAlert';
+import UserProfile from './components/UserProfile';
 import { 
   Shield, LayoutDashboard, UtensilsCrossed, Landmark, User, Lock, Award, 
   Phone, Mail, Users, TrendingUp, TrendingDown, BrainCircuit, Activity,
@@ -60,6 +63,7 @@ const MarketTickerTape = () => {
 
 function MainLayout() {
   const { user, token, loading, login, register, logout } = useAuth();
+  const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState('trading'); // trading, kds, pos, admin
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -91,20 +95,22 @@ function MainLayout() {
       e.preventDefault();
       if (isRegister) {
         if (password !== confirmPassword) {
-          alert("Mật khẩu xác nhận không khớp!");
+          addToast("Mật khẩu xác nhận không khớp!", 'error');
           return;
         }
         const res = await register(username, password, fullName, phone, email, role);
         if (!res.success) {
-          alert(res.message);
+          addToast(res.message, 'error');
         } else {
+          addToast("Đăng ký thành công! Chào mừng Trader mới.", 'success');
           setShowAuthModal(false);
         }
       } else {
         const res = await login(username, password);
         if (!res.success) {
-          alert(res.message);
+          addToast(res.message, 'error');
         } else {
+          addToast("Đăng nhập thành công!", 'success');
           setShowAuthModal(false);
         }
       }
@@ -558,6 +564,7 @@ function MainLayout() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    minLength="6"
                     className="w-full bg-slate-950 border border-slate-800 pl-10 pr-4 py-3 rounded-xl text-sm text-white focus:outline-none focus:border-sky-400 font-mono"
                   />
                 </div>
@@ -571,6 +578,7 @@ function MainLayout() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
+                      minLength="6"
                       className="w-full bg-slate-950 border border-slate-800 pl-10 pr-4 py-3 rounded-xl text-sm text-white focus:outline-none focus:border-sky-400 font-mono"
                     />
                   </div>
@@ -678,6 +686,18 @@ function MainLayout() {
               <Shield className="h-4 w-4" /> BAN QUẢN TRỊ (ADMIN)
             </button>
           )}
+
+          {/* New Profile Tab */}
+          <button 
+            onClick={() => setActiveTab('profile')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition ${
+              activeTab === 'profile' 
+                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm' 
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <User className="h-4 w-4" /> TÀI KHOẢN & LỊCH SỬ
+          </button>
         </div>
 
         {/* User Balance & Profile Hub */}
@@ -712,6 +732,7 @@ function MainLayout() {
         {activeTab === 'kds' && <KdsBoard />}
         {activeTab === 'pos' && <PosConsole />}
         {activeTab === 'admin' && <AdminControls />}
+        {activeTab === 'profile' && <UserProfile />}
       </main>
 
       {/* Floating AI Broker Chat Widget */}

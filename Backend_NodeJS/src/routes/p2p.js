@@ -3,6 +3,8 @@ const router = express.Router();
 const db = require('../config/db');
 const auth = require('../middlewares/auth');
 const crypto = require('crypto');
+const { body, param } = require('express-validator');
+const { checkValidationResult } = require('../middlewares/validate');
 
 /**
  * @swagger
@@ -30,13 +32,13 @@ const crypto = require('crypto');
  *       201:
  *         description: Ticket listed successfully
  */
-router.post('/list', auth(), async (req, res) => {
+router.post('/list', auth(), [
+  body('order_item_id').isInt({ min: 1 }).withMessage('Order item ID must be a positive integer'),
+  body('price').isFloat({ min: 1 }).withMessage('Price must be a positive number'),
+  checkValidationResult
+], async (req, res) => {
   const { order_item_id, price } = req.body;
   const sellerId = req.user.id;
-
-  if (!order_item_id || !price || price <= 0) {
-    return res.status(400).json({ message: 'Order item ID and positive price are required' });
-  }
 
   try {
     // 1. Verify seller actually owns the order item and it hasn't been served
@@ -134,13 +136,12 @@ router.get('/listings', async (req, res) => {
  *       200:
  *         description: Ticket purchased
  */
-router.post('/buy', auth(), async (req, res) => {
+router.post('/buy', auth(), [
+  body('listing_id').isInt({ min: 1 }).withMessage('Listing ID must be a positive integer'),
+  checkValidationResult
+], async (req, res) => {
   const { listing_id } = req.body;
   const buyerId = req.user.id;
-
-  if (!listing_id) {
-    return res.status(400).json({ message: 'Listing ID is required' });
-  }
 
   const client = await db.pool.connect();
   try {
@@ -241,7 +242,10 @@ router.post('/buy', auth(), async (req, res) => {
  *     security:
  *       - bearerAuth: []
  */
-router.post('/listing/:id/cancel', auth(), async (req, res) => {
+router.post('/listing/:id/cancel', auth(), [
+  param('id').isInt({ min: 1 }).withMessage('Listing ID must be a positive integer'),
+  checkValidationResult
+], async (req, res) => {
   const { id } = req.params;
   const sellerId = req.user.id;
 

@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const crypto = require('crypto');
 const externalApis = require('./externalApis');
+const iotService = require('./iotService');
 
 let isCrashMode = false;
 let crashEndTime = null;
@@ -337,6 +338,8 @@ const triggerMarketCrash = async (io) => {
       message: 'MARKET CRASH DETECTED! Price plunged to floor levels!'
     });
 
+    await iotService.triggerCrashLighting();
+
   } catch (err) {
     await client.query('ROLLBACK');
     isCrashMode = false;
@@ -368,6 +371,8 @@ const endMarketCrash = async (io) => {
     io.emit('market_crash_end', {
       message: 'Market stabilized. Prices returned to baseline.'
     });
+
+    await iotService.triggerNormalLighting();
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

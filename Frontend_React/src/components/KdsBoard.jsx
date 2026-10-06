@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { useSocket } from '../context/SocketContext';
+import { useToast } from '../context/ToastContext';
 import { ChefHat, Play, Check, Flame } from 'lucide-react';
 
 // Sub-component riêng cho thẻ đơn hàng tại bếp
@@ -87,6 +88,7 @@ export default function KdsBoard() {
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
   const { socket } = useSocket() || {};
+  const { addToast } = useToast();
 
   useEffect(() => {
     fetchPendingOrders();
@@ -132,7 +134,10 @@ export default function KdsBoard() {
 
   const fetchPendingOrders = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/orders/pending');
+      const token = localStorage.getItem('token');
+      const res = await axios.get('http://localhost:5000/api/orders/pending', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setOrders(res.data);
     } catch (err) {
       console.error('Error fetching pending orders:', err);
@@ -141,7 +146,7 @@ export default function KdsBoard() {
 
   const fetchProducts = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/products');
+      const res = await axios.get('http://localhost:5000/api/products'); // Có thể public hoặc cần token tùy backend
       setProducts(res.data);
     } catch (err) {
       console.error('Error fetching products:', err);
@@ -154,21 +159,27 @@ export default function KdsBoard() {
       const res = await axios.patch(`http://localhost:5000/api/products/${prodId}/toggle-trading`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      alert(res.data.message);
+      addToast(res.data.message, 'success');
       fetchProducts();
     } catch (err) {
-      alert('Lỗi khi thay đổi trạng thái bán món.');
+      addToast('Lỗi khi thay đổi trạng thái bán món.', 'error');
     }
   };
 
   const handleUpdateStatus = useCallback(async (orderId, newStatus) => {
     try {
-      await axios.put(`http://localhost:5000/api/orders/${orderId}/status`, { status: newStatus });
+      const token = localStorage.getItem('token');
+      await axios.put(`http://localhost:5000/api/orders/${orderId}/status`, 
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      addToast('Cập nhật trạng thái đơn thành công!', 'success');
       fetchPendingOrders();
     } catch (err) {
-      alert('Không thể cập nhật trạng thái đơn.');
+      const errMsg = err.response?.data?.message || 'Không thể cập nhật trạng thái đơn.';
+      addToast(errMsg, 'error');
     }
-  }, []);
+  }, [addToast]);
 
   const pendingList = orders.filter(o => o.status === 'PENDING');
   const preparingList = orders.filter(o => o.status === 'PREPARING');

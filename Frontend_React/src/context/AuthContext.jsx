@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import axios from 'axios';
 import { useSocket } from './SocketContext';
+import { parseApiError } from '../utils/apiErrorHandler';
+import { useToast } from './ToastContext';
 
 const AuthContext = createContext();
 
@@ -11,6 +13,7 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [loading, setLoading] = useState(true);
   const { socket } = useSocket() || {};
+  const { addToast } = useToast();
 
   useEffect(() => {
     if (token) {
@@ -37,7 +40,7 @@ export const AuthProvider = ({ children }) => {
         };
       });
       // Optional: alert topup
-      alert(`Đã nhận ${data.amount.toLocaleString()} VND vào ví! Số dư mới: ${data.balance.toLocaleString()} VND`);
+      addToast(`Đã nhận ${data.amount.toLocaleString()} VND vào ví! Số dư mới: ${data.balance.toLocaleString()} VND`, 'success');
     });
 
     return () => {
@@ -65,7 +68,7 @@ export const AuthProvider = ({ children }) => {
       setUser(res.data.user);
       return { success: true };
     } catch (err) {
-      return { success: false, message: err.response?.data?.message || 'Login failed' };
+      return { success: false, message: parseApiError(err) };
     }
   };
 
@@ -84,7 +87,7 @@ export const AuthProvider = ({ children }) => {
       setUser(res.data.user);
       return { success: true };
     } catch (err) {
-      return { success: false, message: err.response?.data?.message || 'Registration failed' };
+      return { success: false, message: parseApiError(err) };
     }
   };
 

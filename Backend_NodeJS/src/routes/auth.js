@@ -3,6 +3,8 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
+const { body } = require('express-validator');
+const { checkValidationResult } = require('../middlewares/validate');
 const auth = require('../middlewares/auth');
 
 /**
@@ -31,11 +33,16 @@ const auth = require('../middlewares/auth');
  *       400:
  *         description: Username already exists
  */
-router.post('/register', async (req, res) => {
+router.post('/register', [
+  body('username').notEmpty().withMessage('Username is required').isLength({ min: 3 }).withMessage('Username must be at least 3 characters'),
+  body('password').notEmpty().withMessage('Password is required').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('full_name').notEmpty().withMessage('Full name is required'),
+  body('phone').notEmpty().withMessage('Phone number is required').isMobilePhone('vi-VN').withMessage('Invalid Vietnamese phone number'),
+  body('email').notEmpty().withMessage('Email is required').isEmail().withMessage('Invalid email format'),
+  body('role').optional().isIn(['CUSTOMER', 'CASHIER', 'KITCHEN', 'ADMIN']).withMessage('Invalid role'),
+  checkValidationResult
+], async (req, res) => {
   const { username, password, full_name, phone, email, role } = req.body;
-  if (!username || !password || !full_name || !phone || !email) {
-    return res.status(400).json({ message: 'All fields (Username, Password, Full Name, Phone, Email) are required' });
-  }
 
   const validRoles = ['CUSTOMER', 'CASHIER', 'KITCHEN', 'ADMIN'];
   const userRole = (role && validRoles.includes(role.toUpperCase())) ? role.toUpperCase() : 'CUSTOMER';
@@ -112,11 +119,12 @@ router.post('/register', async (req, res) => {
  *       401:
  *         description: Invalid credentials
  */
-router.post('/login', async (req, res) => {
+router.post('/login', [
+  body('username').notEmpty().withMessage('Username is required'),
+  body('password').notEmpty().withMessage('Password is required'),
+  checkValidationResult
+], async (req, res) => {
   const { username, password } = req.body;
-  if (!username || !password) {
-    return res.status(400).json({ message: 'Username and password are required' });
-  }
 
   try {
     const result = await db.query('SELECT * FROM users WHERE username = $1', [username]);

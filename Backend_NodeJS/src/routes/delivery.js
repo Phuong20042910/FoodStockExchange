@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middlewares/auth');
+const { calculateDeliveryCost } = require('../services/deliveryCost');
+const { body } = require('express-validator');
+const { checkValidationResult } = require('../middlewares/validate');
 
 /**
  * @swagger
@@ -28,41 +31,23 @@ const auth = require('../middlewares/auth');
  *       200:
  *         description: Delivery quote calculated
  */
-router.post('/quote', auth(), async (req, res) => {
+router.post('/quote', auth(), [
+  body('dest_longitude').isFloat({ min: -180, max: 180 }).withMessage('Valid longitude is required'),
+  body('dest_latitude').isFloat({ min: -90, max: 90 }).withMessage('Valid latitude is required'),
+  checkValidationResult
+], async (req, res) => {
   const { dest_longitude, dest_latitude } = req.body;
 
-  if (dest_longitude === undefined || dest_latitude === undefined) {
-    return res.status(400).json({ message: 'Destination longitude and latitude coordinates are required' });
-  }
-
   try {
-    const pythonDeliveryUrl = 'http://localhost:8000/ai/delivery-cost';
-    const response = await fetch(pythonDeliveryUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        dest_longitude: parseFloat(dest_longitude),
-        dest_latitude: parseFloat(dest_latitude)
-      })
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      return res.json(data);
-    } else {
-      throw new Error('Python Delivery service returned an error');
-    }
-
+    const result = await calculateDeliveryCost(parseFloat(dest_longitude), parseFloat(dest_latitude));
+    return res.json(result);
   } catch (err) {
-    console.error('Error forwarding delivery quote to Python service:', err.message);
-    // Fallback if Python microservice is down
+    console.error('Error calculating delivery quote:', err.message);
     return res.status(502).json({
-      message: 'Delivery Service Gateway Error. Python microservice may be offline.',
+      message: 'Delivery Service Gateway Error.',
       distance_km: 0,
       estimated_duration_minutes: 0,
-      shipping_fee: 15000, // Flat fallback shipping fee
+      shipping_fee: 15000,
       source: 'offline_fallback'
     });
   }

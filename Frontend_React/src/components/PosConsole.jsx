@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { DollarSign, Search, UserPlus, CreditCard } from 'lucide-react';
+import { parseApiError } from '../utils/apiErrorHandler';
+import { useToast } from '../context/ToastContext';
 
 export default function PosConsole() {
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [topupAmount, setTopupAmount] = useState('');
+  const { addToast } = useToast();
 
   useEffect(() => {
     fetchUsers();
@@ -26,7 +29,7 @@ export default function PosConsole() {
     e.preventDefault();
     if (!selectedUser) return;
     if (!topupAmount || parseFloat(topupAmount) <= 0) {
-      alert('Vui lòng nhập số tiền nạp hợp lệ.');
+      addToast('Vui lòng nhập số tiền nạp hợp lệ.', 'error');
       return;
     }
 
@@ -35,13 +38,13 @@ export default function PosConsole() {
         user_id: selectedUser.id,
         amount: parseFloat(topupAmount)
       });
-      alert(`Nạp tiền thành công! Số dư mới: ${res.data.new_balance.toLocaleString()} VND`);
+      addToast(`Nạp tiền thành công! Số dư mới: ${res.data.new_balance.toLocaleString()} VND`, 'success');
       setTopupAmount('');
       fetchUsers();
       // Update selected user info in modal
       setSelectedUser(prev => ({ ...prev, wallet_balance: res.data.new_balance }));
     } catch (err) {
-      alert(err.response?.data?.message || 'Nạp tiền thất bại.');
+      addToast(parseApiError(err), 'error');
     }
   };
 
@@ -138,6 +141,8 @@ export default function PosConsole() {
                   <span className="absolute left-3 top-3.5 font-share-mono text-neonGreen">đ</span>
                   <input 
                     type="number" 
+                    min="1000"
+                    required
                     placeholder="Nhập số tiền nạp..."
                     value={topupAmount}
                     onChange={(e) => setTopupAmount(e.target.value)}
